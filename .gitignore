@@ -5,6 +5,7 @@
 *.dll
 *.so
 *.dylib
+gk-cli
 
 # Test binary, build with `go test -c`
 *.test
