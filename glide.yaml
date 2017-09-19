@@ -1,0 +1,23 @@
+package: github.com/kujtimiihoxha/gk-cli
+import:
+- package: github.com/spf13/cobra
+  subpackages:
+  - cobra
+- package: github.com/Sirupsen/logrus
+  repo: https://github.com/sirupsen/logrus.git
+- package: github.com/sirupsen/logrus
+  version: ^1.0.3
+- package: github.com/spf13/afero
+- package: github.com/Songmu/prompter
+  version: ^0.1.0
+- package: github.com/spf13/viper
+  version: ^1.0.0
+- package: github.com/alioygur/godash
+- package: github.com/smartystreets/goconvey
+  version: ^1.6.3
+- package: github.com/dave/jennifer
+  version: ^0.14.0
+- package: golang.org/x/tools
+  subpackages:
+  - imports
+- package: github.com/kujtimiihoxha/go-balanced-match
