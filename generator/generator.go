@@ -2,10 +2,16 @@ package generator
 
 import (
 	"fmt"
+	"go/ast"
+	ps "go/parser"
+	"go/token"
 
 	"strings"
 
 	"strconv"
+
+	"bytes"
+	"go/format"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dave/jennifer/jen"
@@ -70,6 +76,68 @@ func (b *BaseGenerator) EnsureThatWeUseQualifierIfNeeded(tp string, imp []parser
 		return ""
 	}
 	return ""
+}
+func (b *BaseGenerator) AddImportsToFile(imp []parser.NamedTypeValue, src string) (string, error) {
+	// Create the AST by parsing src
+	fset := token.NewFileSet()
+	f, err := ps.ParseFile(fset, "", src, 0)
+	if err != nil {
+		return "", err
+	}
+	found := false
+
+	// Add the imports
+	for i := 0; i < len(f.Decls); i++ {
+		d := f.Decls[i]
+		switch d.(type) {
+		case *ast.FuncDecl:
+			// No action
+		case *ast.GenDecl:
+			dd := d.(*ast.GenDecl)
+
+			// IMPORT Declarations
+			if dd.Tok == token.IMPORT {
+				found = true
+				// Add the new import
+				for _, v := range imp {
+					iSpec := &ast.ImportSpec{
+						Name: &ast.Ident{Name: v.Name},
+						Path: &ast.BasicLit{Value: v.Type},
+					}
+					dd.Specs = append(dd.Specs, iSpec)
+				}
+			}
+		}
+	}
+	if !found {
+		dd := ast.GenDecl{
+			TokPos: f.Package + 1,
+			Tok:    token.IMPORT,
+			Specs:  []ast.Spec{},
+			Lparen: f.Package,
+			Rparen: f.Package,
+		}
+		lastPos := 0
+		for _, v := range imp {
+			lastPos += len(v.Name) + len(v.Type) + 1
+			iSpec := &ast.ImportSpec{
+				Name:   &ast.Ident{Name: v.Name},
+				Path:   &ast.BasicLit{Value: v.Type},
+				EndPos: token.Pos(lastPos),
+			}
+			dd.Specs = append(dd.Specs, iSpec)
+
+		}
+		f.Decls = append([]ast.Decl{&dd}, f.Decls...)
+	}
+
+	// Sort the imports
+	ast.SortImports(fset, f)
+	var buf bytes.Buffer
+	if err := format.Node(&buf, fset, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s", buf.Bytes()), nil
 }
 
 type PartialGenerator struct {

@@ -35,6 +35,7 @@ func GoImportsSource(path string, s string) (string, error) {
 	is, err := imports.Process(path, []byte(s), nil)
 	return string(is), err
 }
+
 func GetServiceImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)

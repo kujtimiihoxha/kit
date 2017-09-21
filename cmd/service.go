@@ -15,7 +15,7 @@ var serviceCmd = &cobra.Command{
 			logrus.Error("You must provide a name for the service")
 			return
 		}
-		g := generator.NewGenerateService(args[0])
+		g := generator.NewNewService(args[0])
 		if err := g.Generate(); err != nil {
 			logrus.Error(err)
 		}
@@ -23,5 +23,5 @@ var serviceCmd = &cobra.Command{
 }
 
 func init() {
-	generateCmd.AddCommand(serviceCmd)
+	newCmd.AddCommand(serviceCmd)
 }

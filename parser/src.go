@@ -7,6 +7,8 @@ import (
 type File struct {
 	Comment    string
 	Package    string
+	// Only used to get the middleware type
+	FuncType    FuncType
 	Imports    []NamedTypeValue
 	Constants  []NamedTypeValue
 	Vars       []NamedTypeValue
@@ -19,6 +21,12 @@ type Struct struct {
 	Name    string
 	Comment string
 	Vars    []NamedTypeValue
+}
+
+type FuncType struct {
+	Name    string
+	Parameters []NamedTypeValue
+	Results    []NamedTypeValue
 }
 
 type Interface struct {

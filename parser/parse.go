@@ -3,13 +3,14 @@ package parser
 import (
 	"bytes"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/kujtimiihoxha/gk-cli/utils"
 	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/kujtimiihoxha/gk-cli/utils"
 )
 
 type FileParser struct{}
@@ -88,6 +89,13 @@ func (fp *FileParser) parseType(ds []ast.Spec, f *File) {
 			st := tsp.Type.(*ast.StructType)
 			str := NewStruct(tsp.Name.Name, fp.parseFieldListAsNamedTypes(st.Fields))
 			f.Structures = append(f.Structures, str)
+		case *ast.FuncType:
+			st := tsp.Type.(*ast.FuncType)
+			f.FuncType = FuncType{
+				Name:       tsp.Name.Name,
+				Parameters: fp.parseFieldListAsNamedTypes(st.Params),
+				Results:    fp.parseFieldListAsNamedTypes(st.Results),
+			}
 		default:
 			logrus.Info("Skipping unknown type")
 		}
@@ -214,6 +222,8 @@ func (fp *FileParser) getTypeFromExp(e ast.Expr) string {
 		key := fp.getTypeFromExp(k.Key)
 		value := fp.getTypeFromExp(k.Value)
 		tp = "map[" + key + "]" + value
+	case *ast.InterfaceType:
+		tp = "interface{}"
 	default:
 		logrus.Info("Type Expresion not supported")
 		return ""
