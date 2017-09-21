@@ -7,9 +7,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dave/jennifer/jen"
-	"github.com/kujtimiihoxha/gk-cli/fs"
-	"github.com/kujtimiihoxha/gk-cli/parser"
-	"github.com/kujtimiihoxha/gk-cli/utils"
+	"github.com/kujtimiihoxha/kit/fs"
+	"github.com/kujtimiihoxha/kit/parser"
+	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/spf13/viper"
 )
 
@@ -61,69 +61,69 @@ func NewGenerateService(name, transport string, sMiddleware, eMiddleware bool, m
 	i.fs = fs.Get()
 	return i
 }
-func (i *GenerateService) Generate() (err error) {
+func (g *GenerateService) Generate() (err error) {
 	for n, v := range SUPPORTED_TRANSPORTS {
-		if v == i.transport {
+		if v == g.transport {
 			break
 		} else if n == len(SUPPORTED_TRANSPORTS)-1 {
-			logrus.Errorf("Transport `%s` not supported", i.transport)
+			logrus.Errorf("Transport `%s` not supported", g.transport)
 			return
 		}
 	}
-	if b, err := i.fs.Exists(i.filePath); err != nil {
+	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
 	} else {
 		if !b {
-			logrus.Errorf("Service %s was not found", i.name)
+			logrus.Errorf("Service %s was not found", g.name)
 			return nil
 		}
 	}
-	svcSrc, err := i.fs.ReadFile(i.filePath)
+	svcSrc, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
 		return err
 	}
-	i.file, err = parser.NewFileParser().Parse([]byte(svcSrc))
-	if !i.serviceFound() {
+	g.file, err = parser.NewFileParser().Parse([]byte(svcSrc))
+	if !g.serviceFound() {
 		return
 	}
-	i.removeBadMethods()
-	if len(i.serviceInterface.Methods) == 0 {
+	g.removeBadMethods()
+	if len(g.serviceInterface.Methods) == 0 {
 		logrus.Error("The service has no suitable methods please implement the interface methods")
 		return
 	}
-	i.generateServiceStruct()
-	i.generateServiceMethods()
-	i.generateNewBasicStructMethod()
-	i.generateNewMethod()
-	svcSrc += "\n" + i.pg.String()
-	s, err := utils.GoImportsSource(i.destPath, svcSrc)
-	err = i.fs.WriteFile(i.filePath, s, true)
+	g.generateServiceStruct()
+	g.generateServiceMethods()
+	g.generateNewBasicStructMethod()
+	g.generateNewMethod()
+	svcSrc += "\n" + g.pg.String()
+	s, err := utils.GoImportsSource(g.destPath, svcSrc)
+	err = g.fs.WriteFile(g.filePath, s, true)
 	if err != nil {
 		return err
 	}
-	mdwG := newGenerateServiceMiddleware(i.name, i.file, i.serviceInterface, i.sMiddleware)
+	mdwG := newGenerateServiceMiddleware(g.name, g.file, g.serviceInterface, g.sMiddleware)
 	err = mdwG.Generate()
 	if err != nil {
 		return err
 	}
-	epGB := newGenerateServiceEndpointsBase(i.name, i.serviceInterface)
+	epGB := newGenerateServiceEndpointsBase(g.name, g.serviceInterface)
 	err = epGB.Generate()
 	if err != nil {
 		return err
 	}
-	epG := newGenerateServiceEndpoints(i.name, i.file.Imports, i.serviceInterface, i.eMiddleware)
+	epG := newGenerateServiceEndpoints(g.name, g.file.Imports, g.serviceInterface, g.eMiddleware)
 	err = epG.Generate()
 	if err != nil {
 		return err
 	}
-	switch i.transport {
+	switch g.transport {
 	case "http":
-		tbG := newGenerateHttpTransportBase(i.name, i.serviceInterface, i.methods)
+		tbG := newGenerateHttpTransportBase(g.name, g.serviceInterface, g.methods)
 		err = tbG.Generate()
 		if err != nil {
 			return err
 		}
-		tG := newGenerateHttpTransport(i.name, i.serviceInterface, i.methods)
+		tG := newGenerateHttpTransport(g.name, g.serviceInterface, g.methods)
 		err = tG.Generate()
 		if err != nil {
 			return err
@@ -131,21 +131,21 @@ func (i *GenerateService) Generate() (err error) {
 	default:
 		logrus.Warn("This transport type is not yet implemented")
 	}
-	mG := newGenerateCmd(i.name, i.serviceInterface, i.sMiddleware, i.eMiddleware, i.methods)
+	mG := newGenerateCmd(g.name, g.serviceInterface, g.sMiddleware, g.eMiddleware, g.methods)
 	return mG.Generate()
 }
-func (i *GenerateService) generateServiceMethods() {
+func (g *GenerateService) generateServiceMethods() {
 	stp := ""
 	methodParameterNames := []parser.NamedTypeValue{}
-	for _, v := range i.serviceInterface.Methods {
+	for _, v := range g.serviceInterface.Methods {
 		methodParameterNames = append(methodParameterNames, v.Parameters...)
 		methodParameterNames = append(methodParameterNames, v.Results...)
 	}
-	stp = i.GenerateNameBySample(i.serviceStructName, methodParameterNames)
-	for _, m := range i.serviceInterface.Methods {
+	stp = g.GenerateNameBySample(g.serviceStructName, methodParameterNames)
+	for _, m := range g.serviceInterface.Methods {
 		exists := false
-		for _, v := range i.file.Methods {
-			if v.Name == m.Name && v.Struct.Type == "*"+i.serviceStructName {
+		for _, v := range g.file.Methods {
+			if v.Name == m.Name && v.Struct.Type == "*"+g.serviceStructName {
 				logrus.Infof("Service method `%s` already exists so it will not be recreated.", v.Name)
 				exists = true
 				break
@@ -169,40 +169,40 @@ func (i *GenerateService) generateServiceMethods() {
 			jen.Comment("TODO implement the business logic of " + m.Name),
 			jen.Return(rt...),
 		}
-		i.pg.appendFunction(
+		g.pg.appendFunction(
 			m.Name,
-			jen.Id(stp).Id("*"+i.serviceStructName),
+			jen.Id(stp).Id("*"+g.serviceStructName),
 			sp,
 			rs,
 			"",
 			body...,
 		)
-		i.pg.NewLine()
+		g.pg.NewLine()
 	}
 }
-func (i *GenerateService) generateServiceStruct() {
-	for _, v := range i.file.Structures {
-		if v.Name == i.serviceStructName {
-			logrus.Infof("Service `%s` structure already exists so it will not be recreated.", i.serviceStructName)
+func (g *GenerateService) generateServiceStruct() {
+	for _, v := range g.file.Structures {
+		if v.Name == g.serviceStructName {
+			logrus.Infof("Service `%s` structure already exists so it will not be recreated.", g.serviceStructName)
 			return
 		}
 	}
-	i.pg.appendStruct(i.serviceStructName)
+	g.pg.appendStruct(g.serviceStructName)
 }
-func (i *GenerateService) generateNewMethod() {
-	for _, v := range i.file.Methods {
+func (g *GenerateService) generateNewMethod() {
+	for _, v := range g.file.Methods {
 		if v.Name == "New" {
 			logrus.Infof("Service method `%s` already exists so it will not be recreated.", v.Name)
 			return
 		}
 	}
-	i.pg.Raw().Commentf(
+	g.pg.Raw().Commentf(
 		"New returns a %s with all of the expected middleware wired in.",
-		i.interfaceName,
+		g.interfaceName,
 	).Line()
-	fn := fmt.Sprintf("New%s", utils.ToCamelCase(i.serviceStructName))
+	fn := fmt.Sprintf("New%s", utils.ToCamelCase(g.serviceStructName))
 	body := []jen.Code{
-		jen.Var().Id("svc").Id(i.interfaceName).Op("=").Id(fn).Call(),
+		jen.Var().Id("svc").Id(g.interfaceName).Op("=").Id(fn).Call(),
 		jen.For(
 			jen.List(jen.Id("_"), jen.Id("m")).Op(":=").Range().Id("middleware"),
 		).Block(
@@ -210,51 +210,51 @@ func (i *GenerateService) generateNewMethod() {
 		),
 		jen.Return(jen.Id("svc")),
 	}
-	i.pg.appendFunction(
+	g.pg.appendFunction(
 		"New",
 		nil,
 		[]jen.Code{
 			jen.Id("middleware").Id("[]Middleware"),
 		},
 		[]jen.Code{},
-		i.interfaceName,
+		g.interfaceName,
 		body...)
-	i.pg.NewLine()
+	g.pg.NewLine()
 }
-func (i *GenerateService) generateNewBasicStructMethod() {
-	fn := fmt.Sprintf("New%s", utils.ToCamelCase(i.serviceStructName))
-	for _, v := range i.file.Methods {
+func (g *GenerateService) generateNewBasicStructMethod() {
+	fn := fmt.Sprintf("New%s", utils.ToCamelCase(g.serviceStructName))
+	for _, v := range g.file.Methods {
 		if v.Name == fn {
 			logrus.Infof("Service method `%s` already exists so it will not be recreated.", v.Name)
 			return
 		}
 	}
-	i.pg.Raw().Commentf(
+	g.pg.Raw().Commentf(
 		"New%s returns a naive, stateless implementation of %s.",
-		utils.ToCamelCase(i.serviceStructName),
-		i.interfaceName,
+		utils.ToCamelCase(g.serviceStructName),
+		g.interfaceName,
 	).Line()
 	body := []jen.Code{
-		jen.Return(jen.Id(fmt.Sprintf("&%s{}", i.serviceStructName))),
+		jen.Return(jen.Id(fmt.Sprintf("&%s{}", g.serviceStructName))),
 	}
-	i.pg.appendFunction(fn, nil, []jen.Code{}, []jen.Code{}, i.interfaceName, body...)
-	i.pg.NewLine()
+	g.pg.appendFunction(fn, nil, []jen.Code{}, []jen.Code{}, g.interfaceName, body...)
+	g.pg.NewLine()
 }
-func (i *GenerateService) serviceFound() bool {
-	for n, v := range i.file.Interfaces {
-		if v.Name == i.interfaceName {
-			i.serviceInterface = v
+func (g *GenerateService) serviceFound() bool {
+	for n, v := range g.file.Interfaces {
+		if v.Name == g.interfaceName {
+			g.serviceInterface = v
 			return true
-		} else if n == len(i.file.Interfaces)-1 {
-			logrus.Errorf("Could not find the service interface in `%s`", i.name)
+		} else if n == len(g.file.Interfaces)-1 {
+			logrus.Errorf("Could not find the service interface in `%s`", g.name)
 			return false
 		}
 	}
 	return false
 }
-func (i *GenerateService) removeBadMethods() {
+func (g *GenerateService) removeBadMethods() {
 	keepMethods := []parser.Method{}
-	for _, v := range i.serviceInterface.Methods {
+	for _, v := range g.serviceInterface.Methods {
 		if string(v.Name[0]) == strings.ToLower(string(v.Name[0])) {
 			logrus.Warnf("The method '%s' is private and will be ignored", v.Name)
 			continue
@@ -274,7 +274,7 @@ func (i *GenerateService) removeBadMethods() {
 		}
 
 	}
-	i.serviceInterface.Methods = keepMethods
+	g.serviceInterface.Methods = keepMethods
 }
 
 type generateServiceMiddleware struct {
@@ -525,39 +525,39 @@ func newGenerateServiceEndpoints(name string, imports []parser.NamedTypeValue,
 	gsm.fs = fs.Get()
 	return gsm
 }
-func (e *generateServiceEndpoints) Generate() error {
-	e.CreateFolderStructure(e.destPath)
-	if b, err := e.fs.Exists(e.filePath); err != nil {
+func (g *generateServiceEndpoints) Generate() error {
+	g.CreateFolderStructure(g.destPath)
+	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
 	} else {
 		if !b {
-			e.generateFirstTime = true
+			g.generateFirstTime = true
 			f := jen.NewFile("endpoint")
-			e.fs.WriteFile(e.filePath, f.GoString(), false)
+			g.fs.WriteFile(g.filePath, f.GoString(), false)
 		}
 	}
-	epSrc, err := e.fs.ReadFile(e.filePath)
+	epSrc, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
 		return err
 	}
-	e.file, err = parser.NewFileParser().Parse([]byte(epSrc))
+	g.file, err = parser.NewFileParser().Parse([]byte(epSrc))
 	if err != nil {
 		return err
 	}
-	e.generateMethodEndpoint()
-	e.generateEndpointsClientMethods()
-	if e.generateDefaults {
-		mdw := newGenerateEndpointMiddleware(e.name)
+	g.generateMethodEndpoint()
+	g.generateEndpointsClientMethods()
+	if g.generateDefaults {
+		mdw := newGenerateEndpointMiddleware(g.name)
 		err = mdw.Generate()
 		if err != nil {
 			return err
 		}
 	}
-	if e.generateFirstTime {
-		return e.fs.WriteFile(e.filePath, e.srcFile.GoString(), true)
+	if g.generateFirstTime {
+		return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
 	}
-	epSrc += "\n" + e.code.Raw().GoString()
-	tmpSrc := e.srcFile.GoString()
+	epSrc += "\n" + g.code.Raw().GoString()
+	tmpSrc := g.srcFile.GoString()
 	f, err := parser.NewFileParser().Parse([]byte(tmpSrc))
 	if err != nil {
 		return err
@@ -565,41 +565,41 @@ func (e *generateServiceEndpoints) Generate() error {
 	// See if we need to add any new import
 	imp := []parser.NamedTypeValue{}
 	for _, v := range f.Imports {
-		for i, vo := range e.file.Imports {
+		for i, vo := range g.file.Imports {
 			if v.Type == vo.Type && v.Name == vo.Name {
 				break
-			} else if i == len(e.file.Imports)-1 {
+			} else if i == len(g.file.Imports)-1 {
 				imp = append(imp, v)
 			}
 		}
 	}
-	if len(e.file.Imports) == 0 {
+	if len(g.file.Imports) == 0 {
 		imp = f.Imports
 	}
 	if len(imp) > 0 {
-		epSrc, err = e.AddImportsToFile(imp, epSrc)
+		epSrc, err = g.AddImportsToFile(imp, epSrc)
 		if err != nil {
 			return err
 		}
 	}
-	s, err := utils.GoImportsSource(e.destPath, epSrc)
+	s, err := utils.GoImportsSource(g.destPath, epSrc)
 	if err != nil {
 		return err
 	}
-	return e.fs.WriteFile(e.filePath, s, true)
+	return g.fs.WriteFile(g.filePath, s, true)
 }
 
-func (e *generateServiceEndpoints) generateEndpointsClientMethods() {
+func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 	stp := ""
 	methodParameterNames := []parser.NamedTypeValue{}
-	for _, v := range e.serviceInterface.Methods {
+	for _, v := range g.serviceInterface.Methods {
 		methodParameterNames = append(methodParameterNames, v.Parameters...)
 		methodParameterNames = append(methodParameterNames, v.Results...)
 	}
-	stp = e.GenerateNameBySample("Endpoints", methodParameterNames)
-	for _, m := range e.serviceInterface.Methods {
+	stp = g.GenerateNameBySample("Endpoints", methodParameterNames)
+	for _, m := range g.serviceInterface.Methods {
 		found := false
-		for _, v := range e.file.Methods {
+		for _, v := range g.file.Methods {
 			if v.Name == m.Name && v.Struct.Type == "Endpoints" {
 				found = true
 				break
@@ -621,7 +621,7 @@ func (e *generateServiceEndpoints) generateEndpointsClientMethods() {
 					tp = "service." + tp
 				}
 			}
-			pth := e.EnsureThatWeUseQualifierIfNeeded(p.Type, e.serviceImports)
+			pth := g.EnsureThatWeUseQualifierIfNeeded(p.Type, g.serviceImports)
 			if pth != "" {
 				s := strings.Split(p.Type, ".")
 				sp = append(sp, jen.Id(p.Name).Qual(pth, s[1]))
@@ -644,7 +644,7 @@ func (e *generateServiceEndpoints) generateEndpointsClientMethods() {
 					tp = "service." + tp
 				}
 			}
-			pth := e.EnsureThatWeUseQualifierIfNeeded(p.Type, e.serviceImports)
+			pth := g.EnsureThatWeUseQualifierIfNeeded(p.Type, g.serviceImports)
 			if pth != "" {
 				s := strings.Split(p.Type, ".")
 				rs = append(rs, jen.Id(p.Name).Qual(pth, s[1]))
@@ -670,8 +670,8 @@ func (e *generateServiceEndpoints) generateEndpointsClientMethods() {
 			),
 			jen.Return(jen.List(resList...)),
 		}
-		e.code.Raw().Commentf("%s implements Service. Primarily useful in a client.", m.Name).Line()
-		e.code.appendFunction(
+		g.code.Raw().Commentf("%s implements Service. Primarily useful in a client.", m.Name).Line()
+		g.code.appendFunction(
 			m.Name,
 			jen.Id(stp).Id("Endpoints"),
 			sp,
@@ -679,16 +679,16 @@ func (e *generateServiceEndpoints) generateEndpointsClientMethods() {
 			"",
 			body...,
 		)
-		e.code.NewLine()
+		g.code.NewLine()
 	}
 }
 
-func (e *generateServiceEndpoints) generateMethodEndpoint() (err error) {
-	sImp, err := utils.GetServiceImportPath(e.name)
+func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
+	sImp, err := utils.GetServiceImportPath(g.name)
 	if err != nil {
 		return err
 	}
-	for _, m := range e.serviceInterface.Methods {
+	for _, m := range g.serviceInterface.Methods {
 		// For the request struct
 		reqFields := []jen.Code{}
 		// For the response struct
@@ -711,7 +711,7 @@ func (e *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 					tp = "service." + tp
 				}
 			}
-			pth := e.EnsureThatWeUseQualifierIfNeeded(p.Type, e.serviceImports)
+			pth := g.EnsureThatWeUseQualifierIfNeeded(p.Type, g.serviceImports)
 			if pth != "" {
 				s := strings.Split(p.Type, ".")
 				reqFields = append(reqFields, jen.Id(utils.ToCamelCase(p.Name)).Qual(pth, s[1]).Tag(map[string]string{
@@ -735,7 +735,7 @@ func (e *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 					tp = "service." + tp
 				}
 			}
-			pth := e.EnsureThatWeUseQualifierIfNeeded(p.Type, e.serviceImports)
+			pth := g.EnsureThatWeUseQualifierIfNeeded(p.Type, g.serviceImports)
 			if pth != "" {
 				s := strings.Split(p.Type, ".")
 				resFields = append(resFields, jen.Id(utils.ToCamelCase(p.Name)).Qual(pth, s[1]).Tag(map[string]string{
@@ -752,7 +752,7 @@ func (e *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		requestStructExists := false
 		responseStructExists := false
 		makeMethdExists := false
-		for _, v := range e.file.Structures {
+		for _, v := range g.file.Structures {
 			if v.Name == m.Name+"Request" {
 				requestStructExists = true
 			}
@@ -763,29 +763,29 @@ func (e *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 				break
 			}
 		}
-		for _, v := range e.file.Methods {
+		for _, v := range g.file.Methods {
 			if v.Name == "Make"+m.Name+"Endpoint" {
 				makeMethdExists = true
 				break
 			}
 		}
 		if !requestStructExists {
-			e.code.Raw().Commentf("%sRequest collects the request parameters for the %s method.", m.Name, m.Name)
-			e.code.NewLine()
-			e.code.appendStruct(
+			g.code.Raw().Commentf("%sRequest collects the request parameters for the %s method.", m.Name, m.Name)
+			g.code.NewLine()
+			g.code.appendStruct(
 				m.Name+"Request",
 				reqFields...,
 			)
-			e.code.NewLine()
+			g.code.NewLine()
 		}
 		if !responseStructExists {
-			e.code.Raw().Commentf("%sResponse collects the response parameters for the %s method.", m.Name, m.Name)
-			e.code.NewLine()
-			e.code.appendStruct(
+			g.code.Raw().Commentf("%sResponse collects the response parameters for the %s method.", m.Name, m.Name)
+			g.code.NewLine()
+			g.code.appendStruct(
 				m.Name+"Response",
 				resFields...,
 			)
-			e.code.NewLine()
+			g.code.NewLine()
 		}
 		if !makeMethdExists {
 			pt := NewPartialGenerator(nil)
@@ -807,13 +807,13 @@ func (e *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 				jen.List(retList...).Op(":=").Id("s").Dot(m.Name).Call(mCallParam...),
 				jen.Return(jen.Id(m.Name+"Response").Values(respParam), jen.Nil()),
 			)
-			e.code.Raw().Commentf("Make%sEndpoint returns an endpoint that invokes %s on the service.", m.Name, m.Name)
-			e.code.NewLine()
-			e.code.appendFunction(
+			g.code.Raw().Commentf("Make%sEndpoint returns an endpoint that invokes %s on the service.", m.Name, m.Name)
+			g.code.NewLine()
+			g.code.appendFunction(
 				"Make"+m.Name+"Endpoint",
 				nil,
 				[]jen.Code{
-					jen.Id("s").Qual(sImp, e.interfaceName),
+					jen.Id("s").Qual(sImp, g.interfaceName),
 				},
 				[]jen.Code{
 					jen.Qual("github.com/go-kit/kit/endpoint", "Endpoint"),
@@ -821,7 +821,7 @@ func (e *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 				"",
 				jen.Return(pt.Raw()),
 			)
-			e.code.NewLine()
+			g.code.NewLine()
 		}
 	}
 	return
@@ -849,26 +849,29 @@ func newGenerateServiceEndpointsBase(name string, serviceInterface parser.Interf
 	gsm.fs = fs.Get()
 	return gsm
 }
-func (e *generateServiceEndpointsBase) Generate() error {
-	e.CreateFolderStructure(e.destPath)
+func (g *generateServiceEndpointsBase) Generate() (err error) {
+	err = g.CreateFolderStructure(g.destPath)
+	if err != nil {
+		return err
+	}
 	fields := []jen.Code{}
-	for _, v := range e.serviceInterface.Methods {
+	for _, v := range g.serviceInterface.Methods {
 		fields = append(fields, jen.Id(v.Name+"Endpoint").Qual("github.com/go-kit/kit/endpoint", "Endpoint"))
 	}
-	e.srcFile.PackageComment("THIS FILE IS AUTO GENERATED BY GK-CLI DO NOT EDIT!!")
-	e.code.appendMultilineComment([]string{
+	g.srcFile.PackageComment("THIS FILE IS AUTO GENERATED BY GK-CLI DO NOT EDIT!!")
+	g.code.appendMultilineComment([]string{
 		"Endpoints collects all of the endpoints that compose a profile service. It's",
 		"meant to be used as a helper struct, to collect all of the endpoints into a",
 		"single parameter.",
 	})
-	e.code.NewLine()
-	e.code.appendStruct(
+	g.code.NewLine()
+	g.code.appendStruct(
 		"Endpoints",
 		fields...,
 	)
 	eps := jen.Dict{}
 	loops := []jen.Code{}
-	for _, v := range e.serviceInterface.Methods {
+	for _, v := range g.serviceInterface.Methods {
 		eps[jen.Id(v.Name+"Endpoint")] = jen.Id("Make" + v.Name + "Endpoint").Call(jen.Id("s"))
 		l := jen.For(jen.List(jen.Id("_"), jen.Id("m")).Op(":=").Range().Id("mdw").Index(jen.Lit(v.Name)))
 		l.Block(
@@ -876,7 +879,7 @@ func (e *generateServiceEndpointsBase) Generate() error {
 		)
 		loops = append(loops, l)
 	}
-	svcImport, err := utils.GetServiceImportPath(e.name)
+	svcImport, err := utils.GetServiceImportPath(g.name)
 	if err != nil {
 		return err
 	}
@@ -886,16 +889,16 @@ func (e *generateServiceEndpointsBase) Generate() error {
 		),
 	}, loops...)
 	body = append(body, jen.Return(jen.Id("eps")))
-	e.code.appendMultilineComment([]string{
+	g.code.appendMultilineComment([]string{
 		"New returns a Endpoints struct that wraps the provided service, and wires in all of the",
 		"expected endpoint middlewares",
 	})
-	e.code.NewLine()
-	e.code.appendFunction(
+	g.code.NewLine()
+	g.code.appendFunction(
 		"New",
 		nil,
 		[]jen.Code{
-			jen.Id("s").Qual(svcImport, e.interfaceName),
+			jen.Id("s").Qual(svcImport, g.interfaceName),
 			jen.Id("mdw").Map(
 				jen.String(),
 			).Index().Id("endpoint.Middleware"),
@@ -904,8 +907,8 @@ func (e *generateServiceEndpointsBase) Generate() error {
 		"Endpoints",
 		body...,
 	)
-	e.code.NewLine()
-	return e.fs.WriteFile(e.filePath, e.srcFile.GoString(), true)
+	g.code.NewLine()
+	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
 }
 
 type generateEndpointMiddleware struct {
@@ -931,6 +934,10 @@ func newGenerateEndpointMiddleware(name string) Gen {
 	return gsm
 }
 func (g *generateEndpointMiddleware) Generate() (err error) {
+	err = g.CreateFolderStructure(g.destPath)
+	if err != nil {
+		return err
+	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
 	} else {
@@ -1138,7 +1145,10 @@ func newGenerateHttpTransport(name string, serviceInterface parser.Interface, me
 	return t
 }
 func (g *generateHttpTransport) Generate() (err error) {
-	g.CreateFolderStructure(g.destPath)
+	err = g.CreateFolderStructure(g.destPath)
+	if err != nil {
+		return err
+	}
 	endpImports, err := utils.GetEndpointImportPath(g.name)
 	if err != nil {
 		return err

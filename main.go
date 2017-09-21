@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kujtimiihoxha/gk-cli/cmd"
-	"github.com/kujtimiihoxha/gk-cli/utils"
+	"github.com/kujtimiihoxha/kit/cmd"
+	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
 )

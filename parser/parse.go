@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kujtimiihoxha/gk-cli/utils"
+	"github.com/kujtimiihoxha/kit/utils"
 )
 
 type FileParser struct{}

@@ -3,8 +3,8 @@ package generator
 import (
 	"path"
 
-	"github.com/kujtimiihoxha/gk-cli/parser"
-	"github.com/kujtimiihoxha/gk-cli/utils"
+	"github.com/kujtimiihoxha/kit/parser"
+	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/spf13/viper"
 )
 

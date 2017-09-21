@@ -5,8 +5,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/kujtimiihoxha/gk-cli/fs"
-	"github.com/kujtimiihoxha/gk-cli/utils"
+	"github.com/kujtimiihoxha/kit/fs"
+	"github.com/kujtimiihoxha/kit/utils"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/spf13/viper"
 )

@@ -15,9 +15,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dave/jennifer/jen"
-	"github.com/kujtimiihoxha/gk-cli/fs"
-	"github.com/kujtimiihoxha/gk-cli/parser"
-	"github.com/kujtimiihoxha/gk-cli/utils"
+	"github.com/kujtimiihoxha/kit/fs"
+	"github.com/kujtimiihoxha/kit/parser"
+	"github.com/kujtimiihoxha/kit/utils"
 )
 
 type Gen interface {
