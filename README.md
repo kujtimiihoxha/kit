@@ -16,7 +16,8 @@ GoKit Cli needs to ne installed using `go get` and `go install` so `Go` is a req
  - [Create a new service](#create-a-new-service)
  - [Generate the service](#generate-the-service)
  - [Generate the client library](#generate-the-client-library)
- - [Generate new middlewares](#generate-new-middlewares)
+ - [Generate new middlewares](#generate-new-middleware)
+ - [TODO](#todo)
  
 # Installation
 Before you install please read [prerequisites](#prerequisites)
@@ -106,3 +107,8 @@ kit g m hi -s hello
 kit g m hi -s hello -e # if you want to add endpoint middleware
 ```
 The only thing left to do is add your middleware logic.
+
+#TODO
+ - [] Implement other transports `grpc,thrift`
+ - [] Add docker integration
+ - [] Add file watcher 
