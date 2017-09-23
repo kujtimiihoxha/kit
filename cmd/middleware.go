@@ -1,50 +1,53 @@
-// Copyright © 2017 NAME HERE <EMAIL ADDRESS>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/Sirupsen/logrus"
+	"github.com/kujtimiihoxha/kit/generator"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // middlewareCmd represents the middleware command
 var middlewareCmd = &cobra.Command{
-	Use:   "middleware",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:     "middleware",
+	Aliases: []string{"m", "mdw"},
+	Short:   "Generate middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("middleware called")
+		if len(args) == 0 {
+			logrus.Error("You must provide a name for the middleware")
+			return
+		}
+		sn := viper.GetString("service")
+		if sn == "" {
+			logrus.Error("You must provide the name of the service")
+			return
+		}
+		g := generator.NewGenerateMiddleware(
+			args[0],
+			sn,
+			viper.GetBool("endpoint"),
+		)
+		if err := g.Generate(); err != nil {
+			logrus.Error(err)
+		}
+		if viper.GetBool("endpoint") {
+			logrus.Info("Do not forget to append your endpoint middleware to your service middlewares")
+			logrus.Info("Add it to cmd/service/service.go#getEndpointMiddleware()")
+
+		} else {
+
+			logrus.Info("Do not forget to append your service middleware to your service middlewares")
+			logrus.Info("Add it to cmd/service/service.go#getServiceMiddleware()")
+		}
 	},
 }
 
 func init() {
 	generateCmd.AddCommand(middlewareCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// middlewareCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// middlewareCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	middlewareCmd.Flags().StringP("service", "s", "",
+		"Service name that the middleware will be created for")
+	viper.BindPFlag("service", middlewareCmd.Flags().Lookup("service"))
+	middlewareCmd.Flags().BoolP("endpoint", "e", false,
+		"If set create endpoint middleware")
+	viper.BindPFlag("endpoint", middlewareCmd.Flags().Lookup("endpoint"))
 }

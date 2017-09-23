@@ -397,7 +397,7 @@ func (g *generateServiceMiddleware) Generate() error {
 			g.code.NewLine()
 			g.code.NewLine()
 		}
-		g.generateMethodMiddleware()
+		g.generateMethodMiddleware("loggingMiddleware", true)
 	}
 	if g.generateFirstTime {
 		return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
@@ -409,19 +409,11 @@ func (g *generateServiceMiddleware) Generate() error {
 		return err
 	}
 	// See if we need to add any new import
-	imp := []parser.NamedTypeValue{}
-	for _, v := range f.Imports {
-		for i, vo := range g.file.Imports {
-			if v.Type == vo.Type && v.Name == vo.Name {
-				break
-			} else if i == len(g.file.Imports)-1 {
-				imp = append(imp, v)
-			}
-		}
+	imp, err := g.getMissingImports(f.Imports, g.file)
+	if err != nil {
+		return err
 	}
-	if len(g.file.Imports) == 0 {
-		imp = f.Imports
-	}
+
 	if len(imp) > 0 {
 		src, err = g.AddImportsToFile(imp, src)
 		if err != nil {
@@ -435,18 +427,18 @@ func (g *generateServiceMiddleware) Generate() error {
 	return g.fs.WriteFile(g.filePath, s, true)
 }
 
-func (g *generateServiceMiddleware) generateMethodMiddleware() {
+func (g *generateServiceMiddleware) generateMethodMiddleware(mdw string, df bool) {
 	stp := ""
 	methodParameterNames := []parser.NamedTypeValue{}
 	for _, v := range g.serviceInterface.Methods {
 		methodParameterNames = append(methodParameterNames, v.Parameters...)
 		methodParameterNames = append(methodParameterNames, v.Results...)
 	}
-	stp = g.GenerateNameBySample("loggingMiddleware", methodParameterNames)
+	stp = g.GenerateNameBySample(mdw, methodParameterNames)
 	for _, m := range g.serviceInterface.Methods {
 		mthdFound := false
 		for _, v := range g.file.Methods {
-			if v.Name == m.Name && v.Struct.Type == "loggingMiddleware" {
+			if v.Name == m.Name && v.Struct.Type == mdw {
 				mthdFound = true
 				break
 			}
@@ -484,16 +476,21 @@ func (g *generateServiceMiddleware) generateMethodMiddleware() {
 				loggerLog = append(loggerLog, jen.Lit(p.Name), jen.Id(p.Name))
 			}
 			loggerLog = append([]jen.Code{jen.Lit("method"), jen.Lit(m.Name)}, loggerLog...)
-			deferBlock := jen.Id(stp).Dot("logger").Dot("Log").Call(
-				loggerLog...,
-			)
+			var deferBlock *jen.Statement
+			if df {
+				deferBlock = jen.Defer().Func().Call().Block(jen.Id(stp).Dot("logger").Dot("Log").Call(
+					loggerLog...,
+				)).Call()
+			} else {
+				deferBlock = jen.Comment("Implement your middleware logic here").Line().Line()
+			}
 			g.code.appendFunction(
 				m.Name,
-				jen.Id(stp).Id("loggingMiddleware"),
+				jen.Id(stp).Id(mdw),
 				middlewareFuncParam,
 				middlewareFuncResult,
 				"",
-				jen.Defer().Func().Call().Block(deferBlock).Call(),
+				deferBlock,
 				jen.Return(jen.Id(stp).Dot("next").Dot(m.Name).Call(middlewareReturn...)),
 			)
 			g.code.NewLine()
@@ -567,20 +564,13 @@ func (g *generateServiceEndpoints) Generate() error {
 	if err != nil {
 		return err
 	}
+
 	// See if we need to add any new import
-	imp := []parser.NamedTypeValue{}
-	for _, v := range f.Imports {
-		for i, vo := range g.file.Imports {
-			if v.Type == vo.Type && v.Name == vo.Name {
-				break
-			} else if i == len(g.file.Imports)-1 {
-				imp = append(imp, v)
-			}
-		}
+	imp, err := g.getMissingImports(f.Imports, g.file)
+	if err != nil {
+		return err
 	}
-	if len(g.file.Imports) == 0 {
-		imp = f.Imports
-	}
+
 	if len(imp) > 0 {
 		epSrc, err = g.AddImportsToFile(imp, epSrc)
 		if err != nil {
@@ -1151,18 +1141,9 @@ func (g *generateEndpointMiddleware) Generate() (err error) {
 		return err
 	}
 	// See if we need to add any new import
-	imp := []parser.NamedTypeValue{}
-	for _, v := range f.Imports {
-		for i, vo := range g.file.Imports {
-			if v.Type == vo.Type && v.Name == vo.Name {
-				break
-			} else if i == len(g.file.Imports)-1 {
-				imp = append(imp, v)
-			}
-		}
-	}
-	if len(g.file.Imports) == 0 {
-		imp = f.Imports
+	imp, err := g.getMissingImports(f.Imports, g.file)
+	if err != nil {
+		return err
 	}
 	if len(imp) > 0 {
 		src, err = g.AddImportsToFile(imp, src)
@@ -1467,18 +1448,9 @@ func (g *generateHttpTransport) Generate() (err error) {
 		return err
 	}
 	// See if we need to add any new import
-	imp := []parser.NamedTypeValue{}
-	for _, v := range f.Imports {
-		for i, vo := range g.file.Imports {
-			if v.Type == vo.Type && v.Name == vo.Name {
-				break
-			} else if i == len(g.file.Imports)-1 {
-				imp = append(imp, v)
-			}
-		}
-	}
-	if len(g.file.Imports) == 0 {
-		imp = f.Imports
+	imp, err := g.getMissingImports(f.Imports, g.file)
+	if err != nil {
+		return err
 	}
 	if len(imp) > 0 {
 		src, err = g.AddImportsToFile(imp, src)
@@ -1853,18 +1825,9 @@ func (g *generateCmd) Generate() (err error) {
 		return err
 	}
 	// See if we need to add any new import
-	imp := []parser.NamedTypeValue{}
-	for _, v := range f.Imports {
-		for i, vo := range g.file.Imports {
-			if v.Type == vo.Type && v.Name == vo.Name {
-				break
-			} else if i == len(g.file.Imports)-1 {
-				imp = append(imp, v)
-			}
-		}
-	}
-	if len(g.file.Imports) == 0 {
-		imp = f.Imports
+	imp, err := g.getMissingImports(f.Imports, g.file)
+	if err != nil {
+		return err
 	}
 	if len(imp) > 0 {
 		src, err = g.AddImportsToFile(imp, src)

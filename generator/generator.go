@@ -33,6 +33,31 @@ type BaseGenerator struct {
 func (b *BaseGenerator) InitPg() {
 	b.code = NewPartialGenerator(b.srcFile.Empty())
 }
+func (b *BaseGenerator) getMissingImports(imp []parser.NamedTypeValue, f *parser.File) ([]parser.NamedTypeValue, error) {
+	n := []parser.NamedTypeValue{}
+	for _, v := range imp {
+		for i, vo := range f.Imports {
+			if vo.Name == "" {
+				tp, err := strconv.Unquote(vo.Type)
+				if err != nil {
+					return n, err
+				}
+				if v.Type == vo.Type && strings.HasSuffix(tp, v.Name) {
+					break
+				}
+			}
+			if v.Type == vo.Type && v.Name == vo.Name {
+				break
+			} else if i == len(f.Imports)-1 {
+				n = append(n, v)
+			}
+		}
+	}
+	if len(f.Imports) == 0 {
+		n = f.Imports
+	}
+	return n, nil
+}
 func (b *BaseGenerator) CreateFolderStructure(path string) error {
 	e, err := b.fs.Exists(path)
 	if err != nil {
@@ -85,7 +110,6 @@ func (b *BaseGenerator) AddImportsToFile(imp []parser.NamedTypeValue, src string
 		return "", err
 	}
 	found := false
-
 	// Add the imports
 	for i := 0; i < len(f.Decls); i++ {
 		d := f.Decls[i]
@@ -97,6 +121,10 @@ func (b *BaseGenerator) AddImportsToFile(imp []parser.NamedTypeValue, src string
 
 			// IMPORT Declarations
 			if dd.Tok == token.IMPORT {
+				if dd.Rparen == 0 || dd.Lparen == 0 {
+					dd.Rparen = f.Package
+					dd.Lparen = f.Package
+				}
 				found = true
 				// Add the new import
 				for _, v := range imp {
