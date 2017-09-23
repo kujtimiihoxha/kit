@@ -50,12 +50,12 @@ kit g s hello --dmw # to create the default middleware
 kit g s hello -t grpc # specify the transport (default is http)
 ```
 This command will do these things:
-- **Create the service boilerplate**: `hello/pkg/service/service.go`
-- **Create the service middleware**: `hello/pkg/service/middleware.go`
-- **Create the endpoint**:  `hello/pkg/endpoint/endpoint.go` and `hello/pkg/endpoint/endpoint_gen.go`
-- **If using` --dmw` create the endpoint middleware**: `hello/pkg/endpoint/middleware.go`
-- **Create the transport files e.x `http`**: `service-name/pkg/http/handler.go`
-- **Create the service main file** :boom:   
+- Create the service boilerplate: `hello/pkg/service/service.go`
+- Create the service middleware: `hello/pkg/service/middleware.go`
+- Create the endpoint:  `hello/pkg/endpoint/endpoint.go` and `hello/pkg/endpoint/endpoint_gen.go`
+- If using` --dmw` create the endpoint middleware: `hello/pkg/endpoint/middleware.go`
+- Create the transport files e.x `http`: `service-name/pkg/http/handler.go`
+- Create the service main file :boom:   
 `hello/cmd/service/service.go`  
 `hello/cmd/service/service_gen.go`   
 `hello/cmd/main.go`
