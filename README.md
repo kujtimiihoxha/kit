@@ -108,7 +108,7 @@ kit g m hi -s hello -e # if you want to add endpoint middleware
 ```
 The only thing left to do is add your middleware logic.
 
-#TODO
- - [] Implement other transports `grpc,thrift`
- - [] Add docker integration
- - [] Add file watcher 
+# TODO
+ - [ ] Implement other transports `grpc,thrift`
+ - [ ] Add docker integration
+ - [ ] Add file watcher 
