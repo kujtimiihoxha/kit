@@ -54,6 +54,24 @@ func GetServiceImportPath(name string) (string, error) {
 	serviceImport := projectPath + "/" + svcPath
 	return serviceImport, nil
 }
+func GetCmdServiceImportPath(name string) (string, error) {
+	gosrc := GetGOPATH() + "/src/"
+	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if viper.GetString("gk_folder") != "" {
+		pwd += "/" + viper.GetString("gk_folder")
+	}
+	pwd = strings.Replace(pwd, "\\", "/", -1)
+	projectPath := strings.Replace(pwd, gosrc, "", 1)
+	svcPath := fmt.Sprintf(viper.GetString("gk_cmd_service_path_format"), ToLowerSnakeCase(name))
+
+	svcPath = strings.Replace(svcPath, "\\", "/", -1)
+	serviceImport := projectPath + "/" + svcPath
+	return serviceImport, nil
+}
 
 func GetEndpointImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"

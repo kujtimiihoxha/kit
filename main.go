@@ -30,7 +30,8 @@ func main() {
 
 func setDefaults() {
 	viper.SetDefault("gk_service_path_format", path.Join("%s", "pkg", "service"))
-	viper.SetDefault("gk_cmd_path_format", path.Join("%s", "cmd", "service"))
+	viper.SetDefault("gk_cmd_service_path_format", path.Join("%s", "cmd", "service"))
+	viper.SetDefault("gk_cmd_path_format", path.Join("%s", "cmd"))
 	viper.SetDefault("gk_endpoint_path_format", path.Join("%s", "pkg", "endpoint"))
 	viper.SetDefault("gk_http_path_format", path.Join("%s", "pkg", "http"))
 	viper.SetDefault("gk_http_client_path_format", path.Join("%s", "client", "http"))
@@ -42,6 +43,9 @@ func setDefaults() {
 	viper.SetDefault("gk_endpoint_middleware_file_name", "middleware.go")
 	viper.SetDefault("gk_http_file_name", "handler.go")
 	viper.SetDefault("gk_http_base_file_name", "handler_gen.go")
+	viper.SetDefault("gk_cmd_base_file_name", "service_gen.go")
+	viper.SetDefault("gk_cmd_svc_file_name", "service.go")
+	viper.SetDefault("gk_http_client_file_name","http.go")
 
 	viper.SetDefault("gk_service_struct_prefix", "basic")
 

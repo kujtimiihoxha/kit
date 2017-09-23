@@ -131,6 +131,11 @@ func (g *GenerateService) Generate() (err error) {
 	default:
 		logrus.Warn("This transport type is not yet implemented")
 	}
+	mbG := newGenerateCmdBase(g.name, g.serviceInterface, g.sMiddleware, g.eMiddleware, g.methods)
+	err = mbG.Generate()
+	if err != nil {
+		return err
+	}
 	mG := newGenerateCmd(g.name, g.serviceInterface, g.sMiddleware, g.eMiddleware, g.methods)
 	return mG.Generate()
 }
@@ -611,6 +616,7 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 		req := jen.Dict{}
 		resList := []jen.Code{}
 		sp := []jen.Code{}
+		ctxN := "ctx"
 		for _, p := range m.Parameters {
 			tp := p.Type
 			ts := strings.Split(tp, ".")
@@ -630,6 +636,8 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 			}
 			if p.Type != "context.Context" {
 				req[jen.Id(utils.ToCamelCase(p.Name))] = jen.Id(p.Name)
+			} else {
+				ctxN = p.Name
 			}
 		}
 		rs := []jen.Code{}
@@ -661,7 +669,7 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 		body := []jen.Code{
 			jen.Id("request").Op(":=").Id(m.Name + "Request").Values(req),
 			jen.List(jen.Id("response"), jen.Err()).Op(":=").Id(stp).Dot(m.Name + "Endpoint").Call(
-				jen.List(jen.Id("ctx"), jen.Id("request")),
+				jen.List(jen.Id(ctxN), jen.Id("request")),
 			),
 			jen.If(
 				jen.Err().Op("!=").Nil().Block(
@@ -688,6 +696,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 	if err != nil {
 		return err
 	}
+	errTypeFound := false
 	for _, m := range g.serviceInterface.Methods {
 		// For the request struct
 		reqFields := []jen.Code{}
@@ -697,8 +706,10 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		mCallParam := []jen.Code{}
 		respParam := jen.Dict{}
 		retList := []jen.Code{}
+		ctxN := "ctx"
 		for _, p := range m.Parameters {
 			if p.Type == "context.Context" {
+				ctxN = p.Name
 				mCallParam = append(mCallParam, jen.Id(p.Name))
 				continue
 			}
@@ -725,7 +736,14 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			mCallParam = append(mCallParam, jen.Id("req").Dot(utils.ToCamelCase(p.Name)))
 
 		}
+		methodHasError := false
+		errName := ""
 		for _, p := range m.Results {
+			if p.Type == "error" {
+				errTypeFound = true
+				methodHasError = true
+				errName = utils.ToCamelCase(p.Name)
+			}
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
@@ -752,6 +770,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		requestStructExists := false
 		responseStructExists := false
 		makeMethdExists := false
+		failedFound := false
 		for _, v := range g.file.Structures {
 			if v.Name == m.Name+"Request" {
 				requestStructExists = true
@@ -766,6 +785,11 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		for _, v := range g.file.Methods {
 			if v.Name == "Make"+m.Name+"Endpoint" {
 				makeMethdExists = true
+			}
+			if v.Name == "Failed" && v.Struct.Type == m.Name+"Response" {
+				failedFound = true
+			}
+			if failedFound && makeMethdExists {
 				break
 			}
 		}
@@ -793,7 +817,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 				"",
 				nil,
 				[]jen.Code{
-					jen.Id("ctx").Qual("context", "Context"),
+					jen.Id(ctxN).Qual("context", "Context"),
 					jen.Id("request").Interface(),
 				},
 				[]jen.Code{
@@ -820,6 +844,41 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 				},
 				"",
 				jen.Return(pt.Raw()),
+			)
+			g.code.NewLine()
+		}
+		if !failedFound && methodHasError {
+			g.code.Raw().Comment("Failed implements Failer.").Line()
+			g.code.appendFunction(
+				"Failed",
+				jen.Id("r").Id(m.Name+"Response"),
+				[]jen.Code{},
+				[]jen.Code{},
+				"error",
+				jen.Return(jen.Id("r").Dot(errName)),
+			)
+			g.code.NewLine()
+		}
+	}
+	if errTypeFound {
+		failureFound := false
+		for _, v := range g.file.Interfaces {
+			if v.Name == "Failure" {
+				failureFound = true
+			}
+		}
+		if !failureFound {
+			g.code.appendMultilineComment(
+				[]string{
+					"Failer is an interface that should be implemented by response types.",
+					"Response encoders can check if responses are Failer, and if so they've",
+					"failed, and if so encode them using a separate write path based on the error.",
+				},
+			)
+			g.code.NewLine()
+
+			g.code.Raw().Type().Id("Failure").Interface(
+				jen.Id("Failed").Params().Error(),
 			)
 			g.code.NewLine()
 		}
@@ -1170,34 +1229,22 @@ func (g *generateHttpTransport) Generate() (err error) {
 	if err != nil {
 		return err
 	}
-	foundMap := false
-	for _, v := range g.file.Vars {
-		if v.Name == "URL_MAP" {
-			foundMap = true
+	hasError := false
+	errorEncoderFound := false
+	err2codeFound := false
+	errorDecoderFound := false
+	errorWrapperFound := false
+	for _, m := range g.file.Structures {
+		if m.Name == "errorWrapper" {
+			errorWrapperFound = true
 		}
-	}
-	if !foundMap {
-		vl := jen.Dict{}
-		for _, m := range g.serviceInterface.Methods {
-			if len(g.methods) > 0 {
-				notFound := true
-				for _, v := range g.methods {
-					if m.Name == v {
-						notFound = false
-						break
-					}
-				}
-				if notFound {
-					continue
-				}
-			}
-			vl[jen.Lit(m.Name)] = jen.Lit("/" + strings.Replace(utils.ToLowerSnakeCase(m.Name), "_", "-", -1))
-		}
-		g.code.Raw().Comment("Url map for service method, update here if you want to change the url of method")
-		g.code.NewLine()
-		g.code.Raw().Var().Id("URL_MAP").Op("=").Map(jen.Id("string")).String().Values(vl).Line()
 	}
 	for _, m := range g.serviceInterface.Methods {
+		for _, v := range m.Results {
+			if v.Type == "error" {
+				hasError = true
+			}
+		}
 		if len(g.methods) > 0 {
 			notFound := true
 			for _, v := range g.methods {
@@ -1212,14 +1259,59 @@ func (g *generateHttpTransport) Generate() (err error) {
 		}
 		decoderFound := false
 		encoderFound := false
+		handlerFound := false
 		for _, v := range g.file.Methods {
+			if v.Name == "ErrorEncoder" {
+				errorEncoderFound = true
+			}
+			if v.Name == "err2code" {
+				err2codeFound = true
+			}
+			if v.Name == "ErrorDecoder" {
+				errorDecoderFound = true
+			}
 			if v.Name == fmt.Sprintf("decode%sRequest", m.Name) {
 				decoderFound = true
 			}
 			if v.Name == fmt.Sprintf("encode%sResponse", m.Name) {
 				encoderFound = true
 			}
+			if v.Name == fmt.Sprintf("make%sHandler", m.Name) {
+				handlerFound = true
+			}
 		}
+		if !handlerFound {
+			g.code.appendMultilineComment([]string{
+				fmt.Sprintf("make%sHandler creates the handler logic", m.Name),
+			})
+			g.code.NewLine()
+			g.code.appendFunction(
+				fmt.Sprintf("make%sHandler", m.Name),
+				nil,
+				[]jen.Code{
+					jen.Id("m").Id("*").Qual("net/http", "ServeMux"),
+					jen.Id("endpoints").Qual(endpImports, "Endpoints"),
+					jen.Id("options").Index().Qual(
+						"github.com/go-kit/kit/transport/http",
+						"ServerOption",
+					),
+				},
+				[]jen.Code{},
+				"",
+				jen.Id("m").Dot("Handle").Call(
+					jen.Lit("/"+strings.Replace(utils.ToLowerSnakeCase(m.Name), "_", "-", -1)),
+					jen.Qual("github.com/go-kit/kit/transport/http", "NewServer").Call(
+						jen.Id(fmt.Sprintf("endpoints.%sEndpoint", m.Name)),
+						jen.Id(fmt.Sprintf("decode%sRequest", m.Name)),
+						jen.Id(fmt.Sprintf("encode%sResponse", m.Name)),
+						jen.Id("options..."),
+					),
+				),
+			)
+			g.code.NewLine()
+
+		}
+
 		if !decoderFound {
 			g.code.appendMultilineComment([]string{
 				fmt.Sprintf("decode%sResponse  is a transport/http.DecodeRequestFunc that decodes a", m.Name),
@@ -1256,7 +1348,7 @@ func (g *generateHttpTransport) Generate() (err error) {
 				fmt.Sprintf("encode%sResponse", m.Name),
 				nil,
 				[]jen.Code{
-					jen.Id("_").Qual("context", "Context"),
+					jen.Id("ctx").Qual("context", "Context"),
 					jen.Id("w").Qual("net/http", "ResponseWriter"),
 					jen.Id("response").Interface(),
 				},
@@ -1264,12 +1356,103 @@ func (g *generateHttpTransport) Generate() (err error) {
 					jen.Id("err").Error(),
 				},
 				"",
+				jen.If(
+					jen.List(jen.Id("f"), jen.Id("ok")).Op(":=").Id("response.").Call(
+						jen.Qual(
+							endpImports,
+							"Failure",
+						),
+					).Id(";").Id("ok").Id("&&").Id("f").Dot("Failed").Call().Op("!=").Nil(),
+				).Block(
+					jen.Id("ErrorEncoder").Call(
+						jen.Id("ctx"),
+						jen.Id("f").Dot("Failed").Call(),
+						jen.Id("w"),
+					),
+					jen.Return(jen.Nil()),
+				),
 				jen.Id("w").Dot("Header").Call().Dot("Set").Call(
 					jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
 				jen.Err().Op("=").Qual("encoding/json", "NewEncoder").Call(
 					jen.Id("w"),
 				).Dot("Encode").Call(jen.Id("response")),
 				jen.Return(),
+			)
+			g.code.NewLine()
+		}
+	}
+	if hasError {
+		if !errorEncoderFound {
+			g.code.appendFunction(
+				"ErrorEncoder",
+				nil,
+				[]jen.Code{
+					jen.Id("_").Qual("context", "Context"),
+					jen.Id("err").Id("error"),
+					jen.Id("w").Qual("net/http", "ResponseWriter"),
+				},
+				[]jen.Code{},
+				"",
+				jen.Id("w").Dot("WriteHeader").Call(jen.Id("err2code").Call(jen.Err())),
+				jen.Qual("encoding/json", "NewEncoder").Call(jen.Id("w")).Dot("Encode").Call(
+					jen.Id("errorWrapper").Values(
+						jen.Dict{
+							jen.Id("Error"): jen.Err().Dot("Error").Call(),
+						},
+					),
+				),
+			)
+			g.code.NewLine()
+		}
+		if !errorDecoderFound {
+			g.code.appendFunction(
+				"ErrorDecoder",
+				nil,
+				[]jen.Code{
+					jen.Id("r").Id("*").Qual("net/http", "Response"),
+				},
+				[]jen.Code{},
+				"error",
+				jen.Var().Id("w").Id("errorWrapper"),
+				jen.If(
+					jen.Err().Op(":=").Qual("encoding/json", "NewDecoder").Call(
+						jen.Id("r").Dot("Body"),
+					).Dot("Decode").Call(jen.Id("&w")).Id(";").Err().Op("!=").Nil(),
+				).Block(
+					jen.Return(jen.Err()),
+				),
+				jen.Return(jen.Qual("errors", "New").Call(jen.Id("w").Dot("Error"))),
+			)
+			g.code.NewLine()
+
+		}
+		if !err2codeFound {
+			g.code.appendMultilineComment(
+				[]string{
+					"This is used to set the http status, see an example here :",
+					"https://github.com/go-kit/kit/blob/master/examples/addsvc/pkg/addtransport/http.go#L133",
+				},
+			)
+			g.code.NewLine()
+			g.code.appendFunction(
+				"err2code",
+				nil,
+				[]jen.Code{
+					jen.Err().Error(),
+				},
+				[]jen.Code{},
+				"int",
+				jen.Return(jen.Qual("net/http", "StatusInternalServerError")),
+			)
+			g.code.NewLine()
+		}
+		if !errorWrapperFound {
+			g.code.Raw().Type().Id("errorWrapper").Struct(
+				jen.Id("Error").String().Tag(
+					map[string]string{
+						"json": "error",
+					},
+				),
 			)
 			g.code.NewLine()
 		}
@@ -1366,14 +1549,10 @@ func (g *generateHttpTransportBase) Generate() (err error) {
 		}
 		handles = append(
 			handles,
-			jen.Id("m").Dot("Handle").Call(
-				jen.Id("URL_MAP").Index(jen.Lit(m.Name)),
-				jen.Qual("github.com/go-kit/kit/transport/http", "NewServer").Call(
-					jen.Id(fmt.Sprintf("endpoints.%sEndpoint", m.Name)),
-					jen.Id(fmt.Sprintf("decode%sRequest", m.Name)),
-					jen.Id(fmt.Sprintf("encode%sResponse", m.Name)),
-					jen.Id(fmt.Sprintf("options[\"%s\"]...", m.Name)),
-				),
+			jen.Id("make"+m.Name+"Handler").Call(
+				jen.Id("m"),
+				jen.Id("endpoints"),
+				jen.Id("options").Index(jen.Lit(m.Name)),
 			),
 		)
 	}
@@ -1395,11 +1574,10 @@ func (g *generateHttpTransportBase) Generate() (err error) {
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
 }
 
-type generateCmd struct {
+type generateCmdBase struct {
 	BaseGenerator
 	name                               string
 	methods                            []string
-	interfaceName                      string
 	destPath                           string
 	filePath                           string
 	generateSvcDefaultsMiddleware      bool
@@ -1407,194 +1585,33 @@ type generateCmd struct {
 	serviceInterface                   parser.Interface
 }
 
-func newGenerateCmd(name string, serviceInterface parser.Interface,
+func newGenerateCmdBase(name string, serviceInterface parser.Interface,
 	generateSacDefaultsMiddleware bool, generateEndpointDefaultsMiddleware bool, methods []string) Gen {
-	t := &generateCmd{
+	t := &generateCmdBase{
 		name:                               name,
 		methods:                            methods,
-		interfaceName:                      utils.ToCamelCase(name + "Service"),
-		destPath:                           fmt.Sprintf(viper.GetString("gk_cmd_path_format"), utils.ToLowerSnakeCase(name)),
+		destPath:                           fmt.Sprintf(viper.GetString("gk_cmd_service_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface:                   serviceInterface,
 		generateSvcDefaultsMiddleware:      generateSacDefaultsMiddleware,
 		generateEndpointDefaultsMiddleware: generateEndpointDefaultsMiddleware,
 	}
-	t.filePath = path.Join(t.destPath, "main.go")
-	t.srcFile = jen.NewFile("main")
+	t.filePath = path.Join(t.destPath, viper.GetString("gk_cmd_base_file_name"))
+	t.srcFile = jen.NewFile("service")
 	t.InitPg()
 	t.fs = fs.Get()
 	return t
 }
-
-func (g *generateCmd) Generate() (err error) {
+func (g *generateCmdBase) Generate() (err error) {
 	err = g.CreateFolderStructure(g.destPath)
 	if err != nil {
 		return err
 	}
-	err = g.generateMainMethod()
+	g.srcFile.PackageComment("THIS FILE IS AUTO GENERATED BY GK-CLI DO NOT EDIT!!")
+	endpointImport, err := utils.GetEndpointImportPath(g.name)
 	if err != nil {
 		return err
 	}
-	err = g.generateServiceMiddlewareMethod()
-	if err != nil {
-		return err
-	}
-	err = g.generateEndpointMiddlewareMethod()
-	if err != nil {
-		return err
-	}
-	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), false)
-}
-
-func (g *generateCmd) generateServiceMiddlewareMethod() (err error) {
-	svcImport, err := utils.GetServiceImportPath(g.name)
-	body := []jen.Code{}
-	if !g.generateSvcDefaultsMiddleware {
-		body = append(
-			body,
-			jen.Id("mw").Op("=").Index().Qual(svcImport, "Middleware").Block(),
-			jen.Comment("Append your middleware here."),
-		)
-	} else {
-		body = append(
-			body,
-			jen.Id("mw").Op("=").Index().Qual(svcImport, "Middleware").Block(),
-			jen.Id("mw").Op("=").Append(
-				jen.Id("mw"), jen.Id("service").Dot("LoggingMiddleware").Call(jen.Id("logger")),
-			),
-			jen.Comment("Append your middleware here."),
-		)
-	}
-	body = append(body, jen.Return())
-	g.code.NewLine()
-	g.code.appendFunction(
-		"getServiceMiddleware",
-		nil,
-		[]jen.Code{
-			jen.Id("logger").Id("log.Logger"),
-		},
-		[]jen.Code{
-			jen.Id("mw").Index().Qual(svcImport, "Middleware"),
-		},
-		"",
-		body...,
-	)
-	g.code.NewLine()
-	return
-}
-func (g *generateCmd) generateEndpointMiddlewareMethod() (err error) {
-	endpointMdw, err := utils.GetEndpointImportPath(g.name)
-	body := []jen.Code{}
-	if !g.generateEndpointDefaultsMiddleware {
-		body = append(
-			body,
-			jen.Id("mw").Op("=").Map(jen.Id("string")).Index().Qual(
-				"github.com/go-kit/kit/endpoint", "Middleware").Block(),
-			jen.Comment("Append your middleware here."),
-		)
-	} else {
-		body = append(
-			body,
-			jen.Id("mw").Op("=").Map(jen.Id("string")).Index().Qual(
-				"github.com/go-kit/kit/endpoint", "Middleware").Block(),
-			jen.Id("duration").Op(":=").Qual(
-				"github.com/go-kit/kit/metrics/prometheus",
-				"NewSummaryFrom",
-			).Call(jen.Qual("github.com/prometheus/client_golang/prometheus", "SummaryOpts").Values(
-				jen.Dict{
-					jen.Id("Namespace"): jen.Lit("example"),
-					jen.Id("Subsystem"): jen.Lit(g.name),
-					jen.Id("Name"):      jen.Lit("request_duration_seconds"),
-					jen.Id("Help"):      jen.Lit("Request duration in seconds."),
-				},
-			), jen.Index().String().Values(jen.Lit("method"), jen.Lit("success"))),
-		)
-		mdw := map[string][]jen.Code{}
-		for _, m := range g.serviceInterface.Methods {
-			if mdw[m.Name] == nil {
-				mdw[m.Name] = []jen.Code{}
-			}
-			mdw[m.Name] = append(
-				mdw[m.Name],
-				jen.Qual(endpointMdw, "LoggingMiddleware").Call(
-					jen.Id("log").Dot("With").Call(
-						jen.Id("logger"),
-						jen.Lit("method"),
-						jen.Lit(m.Name),
-					)),
-			)
-			mdw[m.Name] = append(
-				mdw[m.Name],
-				jen.Qual(endpointMdw, "InstrumentingMiddleware").Call(
-					jen.Id("duration").Dot("With").Call(
-						jen.Lit("method"),
-						jen.Lit(m.Name),
-					)),
-			)
-		}
-		for _, m := range g.serviceInterface.Methods {
-			body = append(
-				body,
-				jen.Id("mw").Index(jen.Lit(m.Name)).Op("=").Index().Qual("github.com/go-kit/kit/endpoint", "Middleware").Values(
-					jen.List(mdw[m.Name]...),
-				),
-			)
-		}
-	}
-	body = append(body, jen.Return())
-	g.code.NewLine()
-	g.code.appendFunction(
-		"getEndpointMiddleware",
-		nil,
-		[]jen.Code{
-			jen.Id("logger").Id("log.Logger"),
-		},
-		[]jen.Code{
-			jen.Id("mw").Map(jen.Id("string")).Index().Qual("github.com/go-kit/kit/endpoint", "Middleware"),
-		},
-		"",
-		body...,
-	)
-	g.code.NewLine()
-	return
-}
-
-func (g *generateCmd) generateMainMethod() (err error) {
-	pl := NewPartialGenerator(nil)
-	pl.appendMultilineComment([]string{
-		"Define our flags. Your service probably won't need to bind listeners for",
-		"*all* supported transports, or support both Zipkin and LightStep, and so",
-		"on, but we do it here for demonstration purposes.",
-	})
-	pl.Raw().Line()
-	pl.Raw().Id("fs").Op(":=").Qual("flag", "NewFlagSet").Call(
-		jen.Lit(g.name), jen.Id("flag").Dot("ExitOnError"),
-	).Line()
-	pl.Raw().Id("debugAddr").Op(":=").Id("fs").Dot("String").Call(
-		jen.Lit("debug.addr"), jen.Lit(":8080"), jen.Lit("Debug and metrics listen address"),
-	).Line()
-	pl.Raw().Id("httpAddr").Op(":=").Id("fs").Dot("String").Call(
-		jen.Lit("http-addr"), jen.Lit(":8001"), jen.Lit("HTTP listen address"),
-	).Line()
-	pl.Raw().Id("appdashAddr").Op(":=").Id("fs").Dot("String").Call(
-		jen.Lit("appdash-addr"), jen.Lit(""), jen.Lit("Enable Appdash tracing via an Appdash server host:port"),
-	).Line()
-	pl.Raw().Id("fs").Dot("Parse").Call(
-		jen.Id("os").Dot("Args").Index(jen.Lit(1), jen.Empty()),
-	).Line().Line()
-	g.generateLogger(pl)
-	g.generateTracerLogic(pl)
-	pl.NewLine()
-	pl.Raw().Qual("net/http", "DefaultServeMux").Dot("Handle").Call(
-		jen.Lit("/metrics"),
-		jen.Qual("github.com/prometheus/client_golang/prometheus/promhttp", "Handler").Call(),
-	)
-	pl.NewLine()
-	svcImport, err := utils.GetServiceImportPath(g.name)
-	if err != nil {
-		return err
-	}
-	epImport, err := utils.GetEndpointImportPath(g.name)
-
+	serviceImport, err := utils.GetServiceImportPath(g.name)
 	if err != nil {
 		return err
 	}
@@ -1602,6 +1619,23 @@ func (g *generateCmd) generateMainMethod() (err error) {
 	if err != nil {
 		return err
 	}
+	g.code.appendFunction(
+		"createService",
+		nil,
+		[]jen.Code{
+			jen.Id("endpoints").Qual(endpointImport, "Endpoints"),
+		},
+		[]jen.Code{
+			jen.Id("g").Id("*").Qual("github.com/oklog/oklog/pkg/group", "Group"),
+		},
+		"",
+		jen.Id("g").Op("=").Id("&").Qual(
+			"github.com/oklog/oklog/pkg/group", "Group",
+		).Block(),
+		jen.Id("initHttpHandler").Call(jen.Id("endpoints"), jen.Id("g")),
+		jen.Return(jen.Id("g")),
+	)
+	g.code.NewLine()
 	opt := jen.Dict{}
 	for _, v := range g.serviceInterface.Methods {
 		if len(g.methods) > 0 {
@@ -1619,6 +1653,9 @@ func (g *generateCmd) generateMainMethod() (err error) {
 		opt[jen.Lit(v.Name)] =
 			jen.Values(
 				jen.List(
+					jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorEncoder").Call(
+						jen.Qual(httpImport, "ErrorEncoder"),
+					),
 					jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorLogger").Call(jen.Id("logger")),
 					jen.Qual("github.com/go-kit/kit/transport/http", "ServerBefore").Call(
 						jen.Qual("github.com/go-kit/kit/tracing/opentracing", "HTTPToContext").Call(
@@ -1630,59 +1667,622 @@ func (g *generateCmd) generateMainMethod() (err error) {
 				),
 			)
 	}
+	pl := NewPartialGenerator(nil)
 	pl.Raw().Id("options").Op(":=").Map(jen.String()).Index().Qual(
 		"github.com/go-kit/kit/transport/http",
 		"ServerOption",
 	).Values(
 		opt,
-	)
-	pl.NewLine()
-	pl.Raw().Id("svc").Op(":=").Qual(svcImport, "New").Call(
-		jen.Id("getServiceMiddleware").Call(jen.Id("logger")),
-	)
-	pl.NewLine()
-	pl.Raw().Id("eps").Op(":=").Qual(epImport, "New").Call(
-		jen.Id("svc"),
-		jen.Id("getEndpointMiddleware").Call(jen.Id("logger")),
-	)
-	pl.NewLine()
-	pl.Raw().Id("httpHandler").Op(":=").Qual(httpImport, "NewHTTPHandler").Call(
-		jen.Id("eps"),
-		jen.Id("options"),
-	)
-	g.appendGroups(pl)
-	pl.NewLine()
+	).Line()
+	pl.Raw().Return(jen.Id("options"))
 	g.code.appendFunction(
-		"main",
+		"defaultHttpOptions",
 		nil,
-		[]jen.Code{},
-		[]jen.Code{},
+		[]jen.Code{
+			jen.Id("logger").Qual("github.com/go-kit/kit/log", "Logger"),
+			jen.Id("tracer").Qual("github.com/opentracing/opentracing-go", "Tracer"),
+		},
+		[]jen.Code{
+			jen.Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/http", "ServerOption"),
+		},
 		"",
 		pl.Raw(),
 	)
-	return
+	g.code.NewLine()
+	if g.generateEndpointDefaultsMiddleware {
+		body := []jen.Code{}
+		mdw := map[string][]jen.Code{}
+		for _, m := range g.serviceInterface.Methods {
+			if mdw[m.Name] == nil {
+				mdw[m.Name] = []jen.Code{}
+			}
+			mdw[m.Name] = append(
+				mdw[m.Name],
+				jen.Qual(endpointImport, "LoggingMiddleware").Call(
+					jen.Id("log").Dot("With").Call(
+						jen.Id("logger"),
+						jen.Lit("method"),
+						jen.Lit(m.Name),
+					)),
+			)
+			mdw[m.Name] = append(
+				mdw[m.Name],
+				jen.Qual(endpointImport, "InstrumentingMiddleware").Call(
+					jen.Id("duration").Dot("With").Call(
+						jen.Lit("method"),
+						jen.Lit(m.Name),
+					)),
+			)
+		}
+		for _, m := range g.serviceInterface.Methods {
+			body = append(
+				body,
+				jen.Id("mw").Index(jen.Lit(m.Name)).Op("=").Index().Qual("github.com/go-kit/kit/endpoint", "Middleware").Values(
+					jen.List(mdw[m.Name]...),
+				),
+			)
+		}
+		g.code.appendFunction(
+			"addDefaultEndpointMiddleware",
+			nil,
+			[]jen.Code{
+				jen.Id("logger").Qual("github.com/go-kit/kit/log", "Logger"),
+				jen.Id("duration").Id("*").Qual("github.com/go-kit/kit/metrics/prometheus", "Summary"),
+				jen.Id("mw").Map(jen.String()).Index().Qual("github.com/go-kit/kit/endpoint", "Middleware"),
+			},
+			[]jen.Code{},
+			"",
+			body...,
+		)
+		g.code.NewLine()
+	}
+	if g.generateSvcDefaultsMiddleware {
+		g.code.appendFunction(
+			"addDefaultServiceMiddleware",
+			nil,
+			[]jen.Code{
+				jen.Id("logger").Qual("github.com/go-kit/kit/log", "Logger"),
+				jen.Id("mw").Index().Qual(serviceImport, "Middleware"),
+			},
+			[]jen.Code{
+				jen.Index().Qual(serviceImport, "Middleware"),
+			},
+			"",
+			jen.Return(
+				jen.Append(jen.Id("mw"), jen.Qual(serviceImport, "LoggingMiddleware").Call(jen.Id("logger"))),
+			),
+		)
+		g.code.NewLine()
+	}
+	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
 }
-func (g *generateCmd) appendGroups(pl *PartialGenerator) {
-	pl.NewLine()
-	pl.Raw().Var().Id("g").Qual("github.com/oklog/oklog/pkg/group", "Group").Line()
-	pl.Raw().Block(
-		jen.List(jen.Id("debugListener"), jen.Id("err")).Op(":=").Qual("net", "Listen").Call(
-			jen.Lit("tcp"),
-			jen.Id("*debugAddr"),
+
+type generateCmd struct {
+	BaseGenerator
+	name                               string
+	methods                            []string
+	generateFirstTime                  bool
+	file                               *parser.File
+	interfaceName                      string
+	destPath                           string
+	filePath                           string
+	generateSvcDefaultsMiddleware      bool
+	generateEndpointDefaultsMiddleware bool
+	serviceInterface                   parser.Interface
+}
+
+func newGenerateCmd(name string, serviceInterface parser.Interface,
+	generateSacDefaultsMiddleware bool, generateEndpointDefaultsMiddleware bool, methods []string) Gen {
+	t := &generateCmd{
+		name:                               name,
+		methods:                            methods,
+		interfaceName:                      utils.ToCamelCase(name + "Service"),
+		destPath:                           fmt.Sprintf(viper.GetString("gk_cmd_service_path_format"), utils.ToLowerSnakeCase(name)),
+		serviceInterface:                   serviceInterface,
+		generateSvcDefaultsMiddleware:      generateSacDefaultsMiddleware,
+		generateEndpointDefaultsMiddleware: generateEndpointDefaultsMiddleware,
+	}
+	t.filePath = path.Join(t.destPath, viper.GetString("gk_cmd_svc_file_name"))
+	t.srcFile = jen.NewFile("service")
+	t.InitPg()
+	t.fs = fs.Get()
+	return t
+}
+
+func (g *generateCmd) Generate() (err error) {
+	err = g.CreateFolderStructure(g.destPath)
+	if err != nil {
+		return err
+	}
+	if b, err := g.fs.Exists(g.filePath); err != nil {
+		return err
+	} else {
+		if !b {
+			g.generateFirstTime = true
+			f := jen.NewFile("service")
+			g.fs.WriteFile(g.filePath, f.GoString(), false)
+		}
+	}
+	src, err := g.fs.ReadFile(g.filePath)
+	if err != nil {
+		return err
+	}
+	g.file, err = parser.NewFileParser().Parse([]byte(src))
+	if err != nil {
+		return err
+	}
+	g.generateVars()
+	runFound := false
+	for _, v := range g.file.Methods {
+		if v.Name == "Run" {
+			runFound = true
+		}
+	}
+	if !runFound {
+		p, err := g.generateRun()
+		if err != nil {
+			return err
+		}
+		g.code.appendFunction(
+			"Run",
+			nil,
+			[]jen.Code{},
+			[]jen.Code{},
+			"",
+			p.Raw(),
+		)
+	}
+	err = g.generateInitHttp()
+	if err != nil {
+		return err
+	}
+	err = g.generateGetMiddleware()
+	if err != nil {
+		return err
+	}
+	g.generateDefaultMetrics()
+	g.generateCancelInterrupt()
+	g.generateCmdMain()
+	if g.generateFirstTime {
+		return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
+	}
+	tmpSrc := g.srcFile.GoString()
+	src += "\n" + g.code.Raw().GoString()
+	f, err := parser.NewFileParser().Parse([]byte(tmpSrc))
+	if err != nil {
+		return err
+	}
+	// See if we need to add any new import
+	imp := []parser.NamedTypeValue{}
+	for _, v := range f.Imports {
+		for i, vo := range g.file.Imports {
+			if v.Type == vo.Type && v.Name == vo.Name {
+				break
+			} else if i == len(g.file.Imports)-1 {
+				imp = append(imp, v)
+			}
+		}
+	}
+	if len(g.file.Imports) == 0 {
+		imp = f.Imports
+	}
+	if len(imp) > 0 {
+		src, err = g.AddImportsToFile(imp, src)
+		if err != nil {
+			return err
+		}
+	}
+	s, err := utils.GoImportsSource(g.destPath, src)
+	if err != nil {
+		return err
+	}
+	return g.fs.WriteFile(g.filePath, s, true)
+	return nil
+}
+func (g *generateCmd) generateRun() (*PartialGenerator, error) {
+	pg := NewPartialGenerator(nil)
+	pg.Raw().Id("fs").Dot("Parse").Call(jen.Qual("os", "Args").Index(jen.Lit(1), jen.Empty()))
+	pg.Raw().Line().Line().Comment("Create a single logger, which we'll use and give to other components.").Line()
+	pg.Raw().Id("logger").Op("=").Qual("github.com/go-kit/kit/log", "NewLogfmtLogger").Call(
+		jen.Qual("os", "Stderr"),
+	).Line()
+	pg.Raw().Id("logger").Op("=").Qual("github.com/go-kit/kit/log", "With").Call(
+		jen.Id("logger"),
+		jen.Lit("ts"),
+		jen.Qual("github.com/go-kit/kit/log", "DefaultTimestampUTC"),
+	).Line()
+	pg.Raw().Id("logger").Op("=").Qual("github.com/go-kit/kit/log", "With").Call(
+		jen.Id("logger"),
+		jen.Lit("caller"),
+		jen.Qual("github.com/go-kit/kit/log", "DefaultCaller"),
+	).Line().Line()
+	pg.appendMultilineComment(
+		[]string{
+			" Determine which tracer to use. We'll pass the tracer to all the",
+			"components that use it, as a dependency",
+		},
+	)
+	pg.NewLine()
+	pg.Raw().If(
+		jen.Id("*zipkinURL").Op("!=").Lit(""),
+	).Block(
+		jen.Id("logger").Dot("Log").Call(
+			jen.Lit("tracer"),
+			jen.Lit("Zipkin"),
+			jen.Lit("URL"),
+			jen.Id("*zipkinURL"),
 		),
+		jen.List(jen.Id("collector"), jen.Err()).Op(":=").Qual(
+			"github.com/openzipkin/zipkin-go-opentracing", "NewHTTPCollector",
+		).Call(jen.Id("*zipkinURL")),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Id("logger").Dot("Log").Call(
-				jen.Lit("transport"),
-				jen.Lit("debug/HTTP"),
-				jen.Lit("during"),
-				jen.Lit("Listen"),
 				jen.Lit("err"),
 				jen.Id("err"),
 			),
 			jen.Qual("os", "Exit").Call(jen.Lit(1)),
 		),
-		jen.Id("g").Dot("Add").Call(
-			jen.List(
+		jen.Defer().Id("collector").Dot("Close").Call(),
+		jen.Id("recorder").Op(":=").Qual(
+			"github.com/openzipkin/zipkin-go-opentracing", "NewRecorder",
+		).Call(
+			jen.Id("collector"),
+			jen.Lit(false),
+			jen.Lit("localhost:80"),
+			jen.Lit(g.name),
+		),
+		jen.List(jen.Id("tracer"), jen.Id("err")).Op("=").Qual(
+			"github.com/openzipkin/zipkin-go-opentracing", "NewTracer",
+		).Call(jen.Id("recorder")),
+		jen.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Id("logger").Dot("Log").Call(
+				jen.Lit("err"),
+				jen.Id("err"),
+			),
+			jen.Qual("os", "Exit").Call(jen.Lit(1)),
+		),
+	).Else().If(jen.Id("*lightstepToken").Op("!=").Lit("")).Block(
+		jen.Id("logger").Dot("Log").Call(
+			jen.Lit("tracer"),
+			jen.Lit("LightStep"),
+		),
+		jen.Id("tracer").Op("=").Qual(
+			"github.com/lightstep/lightstep-tracer-go", "NewTracer",
+		).Call(jen.Qual(
+			"github.com/lightstep/lightstep-tracer-go", "Options",
+		).Values(
+			jen.Dict{
+				jen.Id("AccessToken"): jen.Id("*lightstepToken"),
+			},
+		),
+		),
+		jen.Defer().Qual(
+			"github.com/lightstep/lightstep-tracer-go", "FlushLightStepTracer",
+		).Call(jen.Id("tracer")),
+	).Else().If(jen.Id("*appdashAddr").Op("!=").Lit("")).Block(
+		jen.Id("logger").Dot("Log").Call(
+			jen.Lit("tracer"),
+			jen.Lit("Appdash"),
+			jen.Lit("addr"),
+			jen.Id("*appdashAddr"),
+		),
+		jen.Id("collector").Op(":=").Qual(
+			"sourcegraph.com/sourcegraph/appdash", "NewRemoteCollector",
+		).Call(jen.Id("*appdashAddr")),
+		jen.Id("tracer").Op("=").Qual(
+			"sourcegraph.com/sourcegraph/appdash/opentracing", "NewTracer",
+		).Call(jen.Id("collector")),
+		jen.Defer().Id("collector").Dot("Close").Call(),
+	).Else().Block(
+		jen.Id("logger").Dot("Log").Call(
+			jen.Lit("tracer"),
+			jen.Lit("none"),
+		),
+		jen.Id("tracer").Op("=").Qual(
+			"github.com/opentracing/opentracing-go", "GlobalTracer",
+		).Call(),
+	).Line().Line()
+
+	svcImport, err := utils.GetServiceImportPath(g.name)
+	if err != nil {
+		return nil, err
+	}
+	epImport, err := utils.GetEndpointImportPath(g.name)
+	if err != nil {
+		return nil, err
+	}
+	pg.Raw().Id("svc").Op(":=").Qual(svcImport, "New").Call(
+		jen.Id("getServiceMiddleware").Call(jen.Id("logger")),
+	).Line()
+	pg.Raw().Id("eps").Op(":=").Qual(epImport, "New").Call(
+		jen.Id("svc"),
+		jen.Id("getEndpointMiddleware").Call(jen.Id("logger")),
+	).Line()
+	pg.Raw().Id("g").Op(":=").Id("createService").Call(
+		jen.Id("eps"),
+	).Line()
+	pg.Raw().Id("initCancelInterrupt").Call(jen.Id("g")).Line()
+	pg.Raw().Id("logger").Dot("Log").Call(
+		jen.Lit("exit"),
+		jen.Id("g").Dot("Run").Call(),
+	).Line()
+	return pg, nil
+}
+func (g *generateCmd) generateVars() {
+	if g.generateFirstTime {
+		g.code.Raw().Var().Id("tracer").Qual("github.com/opentracing/opentracing-go", "Tracer").Line()
+		g.code.Raw().Var().Id("logger").Qual("github.com/go-kit/kit/log", "Logger").Line()
+		g.code.appendMultilineComment(
+			[]string{
+				"Define our flags. Your service probably won't need to bind listeners for",
+				"all* supported transports, but we do it here for demonstration purposes.",
+			},
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("fs").Op("=").Qual("flag", "NewFlagSet").Call(
+			jen.Lit(g.name), jen.Qual("flag", "ExitOnError"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("debugAddr").Op("=").Id("fs").Dot("String").Call(
+			jen.Lit("debug.addr"),
+			jen.Lit(":8080"),
+			jen.Lit("Debug and metrics listen address"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("httpAddr").Op("=").Id("fs").Dot("String").Call(
+			jen.Lit("http-addr"),
+			jen.Lit(":8081"),
+			jen.Lit("HTTP listen address"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("grpcAddr").Op("=").Id("fs").Dot("String").Call(
+			jen.Lit("grpc-addr"),
+			jen.Lit(":8082"),
+			jen.Lit("gRPC listen address"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("thriftAddr").Op("=").Id("fs").Dot("String").Call(
+			jen.Lit("thrift-addr"),
+			jen.Lit(":8083"),
+			jen.Lit("Thrift listen address"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("thriftProtocol").Op("=").Id("fs").Dot("String").Call(
+			jen.Lit("thrift-protocol"),
+			jen.Lit("binary"),
+			jen.Lit("binary, compact, json, simplejson"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("thriftBuffer").Op("=").Id("fs").Dot("Int").Call(
+			jen.Lit("thrift-buffer"),
+			jen.Lit(0),
+			jen.Lit("0 for unbuffered"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("thriftFramed").Op("=").Id("fs").Dot("Bool").Call(
+			jen.Lit("thrift-framed"),
+			jen.Lit(false),
+			jen.Lit("true to enable framing"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("zipkinURL").Op("=").Id("fs").Dot("String").Call(
+			jen.Lit("zipkin-url"),
+			jen.Lit(""),
+			jen.Lit("Enable Zipkin tracing via a collector URL e.g. http://localhost:9411/api/v1/spans"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("lightstepToken").Op("=").Id("fs").Dot("String").Call(
+			jen.Lit("lightstep-token"),
+			jen.Lit(""),
+			jen.Lit("Enable LightStep tracing via a LightStep access token"),
+		)
+		g.code.NewLine()
+		g.code.Raw().Var().Id("appdashAddr").Op("=").Id("fs").Dot("String").Call(
+			jen.Lit("appdash-addr"),
+			jen.Lit(""),
+			jen.Lit("Enable Appdash tracing via an Appdash server host:port"),
+		)
+		g.code.NewLine()
+	}
+}
+func (g *generateCmd) generateInitHttp() (err error) {
+	foundMetric := false
+	for _, v := range g.file.Methods {
+		if v.Name == "initHttpHandler" {
+			return
+		}
+		if v.Name == "initMetricsEndpoint" && !g.generateFirstTime {
+			foundMetric = true
+		}
+	}
+	httpImport, err := utils.GetHttpTransportImportPath(g.name)
+	if err != nil {
+		return err
+	}
+
+	epImport, err := utils.GetEndpointImportPath(g.name)
+	if err != nil {
+		return err
+	}
+
+	pt := NewPartialGenerator(nil)
+	if foundMetric {
+		pt.Raw().Id("initMetricsEndpoint").Call(jen.Id("g")).Line()
+	}
+	pt.Raw().Id("options").Op(":=").Id("defaultHttpOptions").Call(
+		jen.Id("logger"),
+		jen.Id("tracer"),
+	).Line().Comment("Add your http options here").Line().Line()
+	pt.Raw().Id("httpHandler").Op(":=").Qual(httpImport, "NewHTTPHandler").Call(
+		jen.Id("endpoints"),
+		jen.Id("options"),
+	).Line()
+
+	pt.Raw().List(jen.Id("httpListener"), jen.Err()).Op(":=").Qual("net", "Listen").Call(
+		jen.Lit("tcp"),
+		jen.Id("*httpAddr"),
+	).Line()
+	pt.Raw().If(
+		jen.Err().Op("!=").Nil().Block(
+			jen.Id("logger").Dot("Log").Call(
+				jen.Lit("transport"),
+				jen.Lit("HTTP"),
+				jen.Lit("during"),
+				jen.Lit("Listen"),
+				jen.Lit("err"),
+				jen.Err(),
+			),
+		),
+	).Line()
+	pt.Raw().Id("g").Dot("Add").Call(
+		jen.Func().Params().Error().Block(
+			jen.Id("logger").Dot("Log").Call(
+				jen.Lit("transport"),
+				jen.Lit("HTTP"),
+				jen.Lit("addr"),
+				jen.Id("*httpAddr"),
+			),
+			jen.Return(
+				jen.Qual("net/http", "Serve").Call(
+					jen.Id("httpListener"),
+					jen.Id("httpHandler"),
+				),
+			),
+		),
+		jen.Func().Params(jen.Error()).Block(
+			jen.Id("httpListener").Dot("Close").Call(),
+		),
+	).Line()
+	g.code.NewLine()
+	g.code.appendFunction(
+		"initHttpHandler",
+		nil,
+		[]jen.Code{
+			jen.Id("endpoints").Qual(epImport, "Endpoints"),
+			jen.Id("g").Id("*").Qual("github.com/oklog/oklog/pkg/group", "Group"),
+		},
+		[]jen.Code{},
+		"",
+		pt.Raw(),
+	)
+	return
+}
+func (g *generateCmd) generateGetMiddleware() (err error) {
+	for _, v := range g.file.Methods {
+		if v.Name == "getServiceMiddleware" {
+			return
+		}
+	}
+	svcImport, err := utils.GetServiceImportPath(g.name)
+	if err != nil {
+		return err
+	}
+	c := []jen.Code{
+		jen.Id("mw").Op("=").Index().Qual(svcImport, "Middleware").Block(),
+	}
+	if g.generateSvcDefaultsMiddleware {
+		c = append(
+			c,
+			jen.Id("mw").Op("=").Id("addDefaultServiceMiddleware").Call(
+				jen.Id("logger"),
+				jen.Id("mw"),
+			),
+		)
+	}
+	c = append(c, jen.Comment("Append your middleware here").Line(), jen.Return())
+	g.code.NewLine()
+	g.code.appendFunction(
+		"getServiceMiddleware",
+		nil,
+		[]jen.Code{
+			jen.Id("logger").Qual("github.com/go-kit/kit/log", "Logger"),
+		},
+		[]jen.Code{
+			jen.Id("mw").Index().Qual(svcImport, "Middleware"),
+		},
+		"",
+		c...,
+	)
+	g.code.NewLine()
+	c = []jen.Code{
+		jen.Id("mw").Op("=").Map(jen.String()).Index().Qual(
+			"github.com/go-kit/kit/endpoint",
+			"Middleware",
+		).Block(),
+	}
+	if g.generateEndpointDefaultsMiddleware {
+		c = append(
+			c,
+			jen.Id("duration").Op(":=").Qual("github.com/go-kit/kit/metrics/prometheus", "NewSummaryFrom").Call(
+				jen.Qual("github.com/prometheus/client_golang/prometheus", "SummaryOpts").Values(
+					jen.Dict{
+						jen.Id("Help"):      jen.Lit("Request duration in seconds."),
+						jen.Id("Name"):      jen.Lit("request_duration_seconds"),
+						jen.Id("Namespace"): jen.Lit("example"),
+						jen.Id("Subsystem"): jen.Lit(g.name),
+					},
+				),
+				jen.Index().String().Values(jen.Lit("method"), jen.Lit("success")),
+			),
+			jen.Id("addDefaultEndpointMiddleware").Call(
+				jen.Id("logger"), jen.Id("duration"), jen.Id("mw"),
+			),
+		)
+	}
+	c = append(
+		c,
+		jen.Comment("Add you endpoint middleware here").Line(),
+		jen.Return(),
+	)
+	g.code.appendFunction(
+		"getEndpointMiddleware",
+		nil,
+		[]jen.Code{
+			jen.Id("logger").Qual("github.com/go-kit/kit/log", "Logger"),
+		},
+		[]jen.Code{
+			jen.Id("mw").Map(jen.String()).Index().Qual(
+				"github.com/go-kit/kit/endpoint",
+				"Middleware",
+			),
+		},
+		"",
+		c...,
+	)
+	return
+}
+func (g *generateCmd) generateDefaultMetrics() {
+	if g.generateFirstTime {
+		g.code.NewLine()
+		g.code.appendFunction(
+			"initMetricsEndpoint",
+			nil,
+			[]jen.Code{
+				jen.Id("g").Id("*").Qual("github.com/oklog/oklog/pkg/group", "Group"),
+			},
+			[]jen.Code{},
+			"",
+			jen.Qual("net/http", "DefaultServeMux").Dot("Handle").Call(
+				jen.Lit("/metrics"),
+				jen.Qual("github.com/prometheus/client_golang/prometheus/promhttp", "Handler").Call(),
+			),
+			jen.List(jen.Id("debugListener"), jen.Err()).Op(":=").Qual("net", "Listen").Call(
+				jen.Lit("tcp"),
+				jen.Id("*debugAddr"),
+			),
+			jen.If(
+				jen.Err().Op("!=").Nil().Block(
+					jen.Id("logger").Dot("Log").Call(
+						jen.Lit("transport"),
+						jen.Lit("debug/HTTP"),
+						jen.Lit("during"),
+						jen.Lit("Listen"),
+						jen.Lit("err"),
+						jen.Err(),
+					),
+				),
+			),
+			jen.Id("g").Dot("Add").Call(
 				jen.Func().Params().Error().Block(
 					jen.Id("logger").Dot("Log").Call(
 						jen.Lit("transport"),
@@ -1701,145 +2301,72 @@ func (g *generateCmd) appendGroups(pl *PartialGenerator) {
 					jen.Id("debugListener").Dot("Close").Call(),
 				),
 			),
-		),
-	)
-	pl.NewLine()
-	pl.Raw().Block(
-		jen.List(jen.Id("httpListener"), jen.Id("err")).Op(":=").Qual("net", "Listen").Call(
-			jen.Lit("tcp"),
-			jen.Id("*httpAddr"),
-		),
-		jen.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Id("logger").Dot("Log").Call(
-				jen.Lit("transport"),
-				jen.Lit("HTTP"),
-				jen.Lit("during"),
-				jen.Lit("Listen"),
-				jen.Lit("err"),
-				jen.Id("err"),
-			),
-			jen.Qual("os", "Exit").Call(jen.Lit(1)),
-		),
-		jen.Id("g").Dot("Add").Call(
-			jen.List(
-				jen.Func().Params().Error().Block(
-					jen.Id("logger").Dot("Log").Call(
-						jen.Lit("transport"),
-						jen.Lit("HTTP"),
-						jen.Lit("addr"),
-						jen.Id("*httpAddr"),
-					),
-					jen.Return(
-						jen.Qual("net/http", "Serve").Call(
-							jen.Id("httpListener"),
-							jen.Id("httpHandler"),
+		)
+	}
+}
+func (g *generateCmd) generateCancelInterrupt() {
+	if g.generateFirstTime {
+		g.code.NewLine()
+		g.code.appendFunction(
+			"initCancelInterrupt",
+			nil,
+			[]jen.Code{
+				jen.Id("g").Id("*").Qual("github.com/oklog/oklog/pkg/group", "Group"),
+			},
+			[]jen.Code{},
+			"",
+			jen.Id("cancelInterrupt").Op(":=").Make(jen.Chan().Struct()),
+			jen.Id("g").Dot("Add").Call(
+				jen.List(
+					jen.Func().Params().Error().Block(
+						jen.Id("c").Op(":=").Make(jen.Chan().Qual("os", "Signal"), jen.Lit(1)),
+						jen.Qual("os/signal", "Notify").Call(
+							jen.Id("c"),
+							jen.Qual("syscall", "SIGINT"),
+							jen.Qual("syscall", "SIGTERM"),
 						),
-					),
-				),
-				jen.Func().Params(jen.Error()).Block(
-					jen.Id("httpListener").Dot("Close").Call(),
-				),
-			),
-		),
-	)
-	pl.NewLine()
-	pl.Raw().Block(
-		jen.Id("cancelInterrupt").Op(":=").Make(jen.Chan().Struct()),
-		jen.Id("g").Dot("Add").Call(
-			jen.List(
-				jen.Func().Params().Error().Block(
-					jen.Id("c").Op(":=").Make(jen.Chan().Qual("os", "Signal"), jen.Lit(1)),
-					jen.Qual("os/signal", "Notify").Call(
-						jen.Id("c"),
-						jen.Qual("syscall", "SIGINT"),
-						jen.Qual("syscall", "SIGTERM"),
-					),
-					jen.Select().Block(
-						jen.Case(jen.Id("sig").Op(":=").Id("<-c")).Block(
-							jen.Return(
-								jen.Qual("fmt", "Errorf").Call(
-									jen.Lit("received signal %s"),
-									jen.Id("sig"),
+						jen.Select().Block(
+							jen.Case(jen.Id("sig").Op(":=").Id("<-c")).Block(
+								jen.Return(
+									jen.Qual("fmt", "Errorf").Call(
+										jen.Lit("received signal %s"),
+										jen.Id("sig"),
+									),
+								),
+							),
+							jen.Case(jen.Id("<-cancelInterrupt")).Block(
+								jen.Return(
+									jen.Nil(),
 								),
 							),
 						),
-						jen.Case(jen.Id("<-cancelInterrupt")).Block(
-							jen.Return(
-								jen.Nil(),
-							),
-						),
 					),
-				),
-				jen.Func().Params(jen.Error()).Block(
-					jen.Id("close").Call(jen.Id("cancelInterrupt")),
-				),
-			),
-		),
-	)
-	pl.NewLine()
-	//	logger.Log("exit", g.Run())
-	pl.Raw().Id("logger").Dot("Log").Call(
-		jen.Lit("exit"),
-		jen.Id("g").Dot("Run").Call(),
-	)
-}
-func (g *generateCmd) generateLogger(pl *PartialGenerator) {
-	pl.appendMultilineComment([]string{
-		"Create a single logger, which we'll use and give to other components.",
-	})
-	pl.NewLine()
-	pl.Raw().Var().Id("logger").Qual("github.com/go-kit/kit/log", "Logger")
-	pl.Raw().Line().Block(
-		jen.Id("logger").Op("=").Id("log").Dot("NewLogfmtLogger").Call(
-			jen.Qual("os", "Stderr"),
-		),
-		jen.Line(),
-		jen.Id("logger").Op("=").Id("log").Dot("With").Call(
-			jen.Id("logger"),
-			jen.Lit("ts"),
-			jen.Id("log").Dot("DefaultTimestampUTC"),
-		),
-		jen.Line(),
-		jen.Id("logger").Op("=").Id("log").Dot("With").Call(
-			jen.Id("logger"),
-			jen.Lit("caller"),
-			jen.Id("log").Dot("DefaultCaller"),
-		),
-	)
-}
-func (g *generateCmd) generateTracerLogic(pl *PartialGenerator) {
-	pl.appendMultilineComment([]string{
-		"Determine which tracer to use. We'll pass the tracer to all the",
-		"components that use it, as a dependency.",
-	})
-	pl.NewLine()
-	pl.Raw().Var().Id("tracer").Qual("github.com/opentracing/opentracing-go", "Tracer")
-	pl.Raw().Line().Block(
-		jen.If(
-			jen.Id("*appdashAddr").Op("!=").Lit("").Block(
-				jen.Id("logger").Dot("Log").Call(
-					jen.Lit("tracer"),
-					jen.Lit("Appdash"),
-					jen.Lit("addr"),
-					jen.Id("*appdashAddr"),
-				),
-				//tracer = appdashot.NewTracer(appdash.NewRemoteCollector(*appdashAddr))
-				jen.Id("tracer").Op("=").Qual(
-					"sourcegraph.com/sourcegraph/appdash/opentracing",
-					"NewTracer").Call(
-					jen.Qual("sourcegraph.com/sourcegraph/appdash", "NewRemoteCollector").Call(
-						jen.Id("*appdashAddr"),
+					jen.Func().Params(jen.Error()).Block(
+						jen.Id("close").Call(jen.Id("cancelInterrupt")),
 					),
 				),
 			),
-		).Else().Block(
-			jen.Id("logger").Dot("Log").Call(
-				jen.Lit("tracer"),
-				jen.Lit("none"),
-			),
-			jen.Id("tracer").Op("=").Qual(
-				"github.com/opentracing/opentracing-go",
-				"GlobalTracer").Call(),
-		),
+		)
+	}
+}
+func (g *generateCmd) generateCmdMain() error {
+	mainDest := fmt.Sprintf(viper.GetString("gk_cmd_path_format"), g.name)
+	mainFilePath := path.Join(mainDest, "main.go")
+	g.CreateFolderStructure(mainDest)
+	if b, err := g.fs.Exists(mainFilePath); err != nil {
+		return err
+	} else {
+		if b {
+			return nil
+		}
+	}
+	cmdSvcImport, err := utils.GetCmdServiceImportPath(g.name)
+	if err != nil {
+		return err
+	}
+	src := jen.NewFile("main")
+	src.Func().Id("main").Params().Block(
+		jen.Qual(cmdSvcImport, "Run").Call(),
 	)
+	return g.fs.WriteFile(mainFilePath, src.GoString(), false)
 }

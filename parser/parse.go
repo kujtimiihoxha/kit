@@ -143,6 +143,10 @@ func (fp *FileParser) parseVars(ds []ast.Spec) []NamedTypeValue {
 			}
 			vars = append(vars, NewNameTypeValue(tp.Name, vsp.Names[0].Name, bd))
 		} else {
+			if !ok {
+				vars = append(vars, NewNameType(vsp.Names[0].Name, ""))
+				continue
+			}
 			vars = append(vars, NewNameType(tp.Name, vsp.Names[0].Name))
 		}
 	}

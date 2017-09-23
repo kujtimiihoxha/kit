@@ -16,16 +16,15 @@ import (
 
 type GenerateClient struct {
 	BaseGenerator
-	name              string
-	transport         string
-	interfaceName     string
-	serviceStructName string
-	destPath          string
-	filePath          string
-	serviceDestPath   string
-	serviceFilePath   string
-	serviceFile       *parser.File
-	serviceInterface  parser.Interface
+	name             string
+	transport        string
+	interfaceName    string
+	destPath         string
+	filePath         string
+	serviceDestPath  string
+	serviceFilePath  string
+	serviceFile      *parser.File
+	serviceInterface parser.Interface
 }
 
 func NewGenerateClient(name string, transport string) Gen {
@@ -37,8 +36,7 @@ func NewGenerateClient(name string, transport string) Gen {
 		transport:       transport,
 	}
 	i.serviceFilePath = path.Join(i.serviceDestPath, viper.GetString("gk_service_file_name"))
-	i.filePath = path.Join(i.destPath, "main.go")
-	i.serviceStructName = utils.ToLowerFirstCamelCase(viper.GetString("gk_service_struct_prefix") + "-" + i.interfaceName)
+	i.filePath = path.Join(i.destPath, viper.GetString("gk_service_file_name"))
 	i.srcFile = jen.NewFilePath(i.destPath)
 	i.InitPg()
 	i.fs = fs.Get()
@@ -74,11 +72,17 @@ func (g *GenerateClient) Generate() (err error) {
 		logrus.Error("The service has no suitable methods please implement the interface methods")
 		return
 	}
-	cg := newGenerateHttpClient(g.name, g.serviceInterface, g.serviceFile)
-	err = cg.Generate()
-	if err != nil {
-		return err
+	switch g.transport {
+	case "http":
+		cg := newGenerateHttpClient(g.name, g.serviceInterface, g.serviceFile)
+		err = cg.Generate()
+		if err != nil {
+			return err
+		}
+	default:
+		logrus.Warn("This transport type is not yet implemented")
 	}
+
 	return
 }
 func (g *GenerateClient) serviceFound() bool {
@@ -119,13 +123,12 @@ func (g *GenerateClient) removeBadMethods() {
 
 type generateHttpClient struct {
 	BaseGenerator
-	name              string
-	interfaceName     string
-	serviceStructName string
-	destPath          string
-	filePath          string
-	serviceInterface  parser.Interface
-	serviceFile       *parser.File
+	name             string
+	interfaceName    string
+	destPath         string
+	filePath         string
+	serviceInterface parser.Interface
+	serviceFile      *parser.File
 }
 
 func newGenerateHttpClient(name string, serviceInterface parser.Interface, serviceFile *parser.File) Gen {
@@ -136,8 +139,7 @@ func newGenerateHttpClient(name string, serviceInterface parser.Interface, servi
 		serviceInterface: serviceInterface,
 		serviceFile:      serviceFile,
 	}
-	i.filePath = path.Join(i.destPath, "main.go")
-	i.serviceStructName = utils.ToLowerFirstCamelCase(viper.GetString("gk_http_file_name") + "-" + i.interfaceName)
+	i.filePath = path.Join(i.destPath, viper.GetString("gk_http_client_file_name"))
 	i.srcFile = jen.NewFilePath(i.destPath)
 	i.InitPg()
 	i.fs = fs.Get()
@@ -229,7 +231,10 @@ func (g *generateHttpClient) Generate() (err error) {
 		"",
 		body...,
 	)
-	g.generateDecodeEncodeMethods(endpointImport)
+	err = g.generateDecodeEncodeMethods(endpointImport)
+	if err != nil {
+		return err
+	}
 	g.code.appendFunction(
 		"copyURL",
 		nil,
@@ -247,22 +252,13 @@ func (g *generateHttpClient) Generate() (err error) {
 		jen.Return(),
 	)
 	g.code.NewLine()
-	g.code.appendFunction(
-		"errorDecoder",
-		nil,
-		[]jen.Code{
-			jen.Id("r").Id("*").Qual("net/http", "Response"),
-		},
-		[]jen.Code{},
-		"error",
-		jen.Comment("TODO Implement the client errorDecoder").Line(),
-		jen.Return(
-			jen.Qual("errors", "New").Call(jen.Lit("Not implemented")),
-		),
-	)
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), false)
 }
-func (g *generateHttpClient) generateDecodeEncodeMethods(endpointImport string) {
+func (g *generateHttpClient) generateDecodeEncodeMethods(endpointImport string) (err error) {
+	httpImport, err := utils.GetHttpTransportImportPath(g.name)
+	if err != nil {
+		return err
+	}
 	g.code.NewLine()
 	g.code.appendMultilineComment([]string{
 		"EncodeHTTPGenericRequest is a transport/http.EncodeRequestFunc that",
@@ -316,7 +312,7 @@ func (g *generateHttpClient) generateDecodeEncodeMethods(endpointImport string) 
 			jen.If(
 				jen.Id("r").Dot("StatusCode").Op("!=").Qual("net/http", "StatusOK"),
 			).Block(
-				jen.Return(jen.Nil(), jen.Id("errorDecoder").Call(jen.Id("r"))),
+				jen.Return(jen.Nil(), jen.Qual(httpImport, "ErrorDecoder").Call(jen.Id("r"))),
 			),
 			jen.Var().Id("resp").Qual(endpointImport, m.Name+"Response"),
 			jen.Err().Op(":=").Qual("encoding/json", "NewDecoder").Call(
@@ -326,4 +322,5 @@ func (g *generateHttpClient) generateDecodeEncodeMethods(endpointImport string) 
 		)
 		g.code.NewLine()
 	}
+	return
 }
