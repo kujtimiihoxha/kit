@@ -3,12 +3,10 @@ package parser
 import (
 	"testing"
 
-	"os"
-
 	"fmt"
 
-	"github.com/emicklei/proto"
-	"github.com/kujtimiihoxha/kit/utils"
+	"runtime"
+
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -108,33 +106,5 @@ func TestFileParser_ParseVariablesConstants(t *testing.T) {
 }
 
 func TestName(t *testing.T) {
-	pb := &proto.Proto{}
-	pb.Elements = append(
-		pb.Elements,
-		&proto.Syntax{
-			Value: "proto3",
-		},
-		&proto.Package{
-			Name: "pb",
-		},
-		&proto.Service{
-			Comment: &proto.Comment{
-				Lines: []string{
-					fmt.Sprintf("The %s service definition.", utils.ToCamelCase("Hello")),
-				},
-			},
-			Name:"Test",
-		},
-		&proto.Service{
-			Comment: &proto.Comment{
-				Lines: []string{
-					fmt.Sprintf("The %s blla definition.", utils.ToCamelCase("Hello")),
-				},
-			},
-			Name:"Blla",
-		},
-	)
-	formatter := proto.NewFormatter(os.Stdout, " ")
-	formatter.Format(pb)
-
+	fmt.Println(runtime.GOOS)
 }

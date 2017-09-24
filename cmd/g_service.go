@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"os/exec"
-	"runtime"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/kujtimiihoxha/kit/generator"
 	"github.com/spf13/cobra"
@@ -21,32 +18,8 @@ var initserviceCmd = &cobra.Command{
 			return
 		}
 		if viper.GetString("transport") == "grpc" {
-			p := exec.Command("protoc")
-			if p.Run() != nil {
-				logrus.Error("Please install protoc first and than rerun the command")
-				if runtime.GOOS == "windows" {
-					logrus.Info(
-						"Install proto3.",
-						"https://github.com/google/protobuf/releases",
-						"Update protoc Go bindings via",
-						"go get -u github.com/golang/protobuf/protoc-gen-go",
-						"",
-						"See also",
-						"https://github.com/grpc/grpc-go/tree/master/examples",
-					)
-				}
-				logrus.Info(
-					"Install proto3 from source macOS only.",
-					"brew install autoconf automake libtool",
-					"git clone https://github.com/google/protobuf",
-					" ./autogen.sh ; ./configure ; make ; make install",
-					"",
-					"Update protoc Go bindings via",
-					"go get -u github.com/golang/protobuf/{proto,protoc-gen-go}",
-					"",
-					"See also",
-					"https://github.com/grpc/grpc-go/tree/master/examples",
-				)
+			if !checkProtoc() {
+				return
 			}
 		}
 		emw := false
