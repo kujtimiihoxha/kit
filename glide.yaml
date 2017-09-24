@@ -21,3 +21,4 @@ import:
   subpackages:
   - imports
 - package: github.com/kujtimiihoxha/go-balanced-match
+- package: github.com/emicklei/proto

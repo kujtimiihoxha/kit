@@ -10,6 +10,7 @@ import (
 	"github.com/kujtimiihoxha/kit/parser"
 	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/spf13/viper"
+	"strings"
 )
 
 type GenerateMiddleware struct {
@@ -67,6 +68,7 @@ func (g *GenerateMiddleware) Generate() (err error) {
 	if !g.serviceFound() {
 		return
 	}
+	g.removeBadMethods()
 	gi := newGenerateServiceMiddleware(g.serviceName, g.file, g.serviceInterface, false)
 	g.serviceGenerator = gi.(*generateServiceMiddleware)
 	if g.isEndpointMiddleware {
@@ -267,4 +269,28 @@ func (g *GenerateMiddleware) serviceFound() bool {
 		}
 	}
 	return false
+}
+func (g *GenerateMiddleware) removeBadMethods() {
+	keepMethods := []parser.Method{}
+	for _, v := range g.serviceInterface.Methods {
+		if string(v.Name[0]) == strings.ToLower(string(v.Name[0])) {
+			logrus.Warnf("The method '%s' is private and will be ignored", v.Name)
+			continue
+		}
+		if len(v.Results) == 0 {
+			logrus.Warnf("The method '%s' does not have any return value and will be ignored", v.Name)
+			continue
+		}
+		for n, p := range v.Parameters {
+			if p.Type == "context.Context" {
+				keepMethods = append(keepMethods, v)
+				break
+			} else if n == len(v.Parameters)-1 {
+				logrus.Warnf("The method '%s' does not have a context and will be ignored", v.Name)
+				continue
+			}
+		}
+
+	}
+	g.serviceInterface.Methods = keepMethods
 }
