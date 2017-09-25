@@ -64,10 +64,12 @@ See also
 https://github.com/grpc/grpc-go/tree/master/examples`,
 			)
 		} else {
-			logrus.Info(`sudo apt-get install -y git autoconf automake libtool curl make g++ unzip
+			logrus.Info(`Install proto3
+sudo apt-get install -y git autoconf automake libtool curl make g++ unzip
 git clone https://github.com/google/protobuf.git
 cd protobuf/
 ./autogen.sh
+./configure
 make
 make check
 sudo make install

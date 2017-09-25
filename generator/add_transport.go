@@ -7,6 +7,12 @@ import (
 
 	"bytes"
 
+	"os/exec"
+
+	"os"
+
+	"runtime"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/dave/jennifer/jen"
 	"github.com/emicklei/proto"
@@ -95,6 +101,12 @@ func (g *GenerateTransport) Generate() (err error) {
 		if err != nil {
 			return err
 		}
+		logrus.Warn("===============================================================")
+		logrus.Warn("The GRPC implementation is not finished you need to update your")
+		logrus.Warn("the service proto buffer and run the compile script.")
+		logrus.Warn("---------------------------------------------------------------")
+		logrus.Warn("You also need to implement the Encoders and Decoders!")
+		logrus.Warn("===============================================================")
 	default:
 		logrus.Warn("This transport type is not yet implemented")
 	}
@@ -537,7 +549,7 @@ func newGenerateGRPCTransportProto(name string, serviceInterface parser.Interfac
 		t.destPath,
 		fmt.Sprintf(viper.GetString("gk_grpc_pb_file_name"), utils.ToLowerSnakeCase(name)),
 	)
-	t.compileFilePath = path.Join(t.destPath, viper.GetString("gk_http_base_file_name"))
+	t.compileFilePath = path.Join(t.destPath, viper.GetString("gk_grpc_compile_file_name"))
 	t.fs = fs.Get()
 	return t
 }
@@ -595,7 +607,86 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 	buf := new(bytes.Buffer)
 	formatter := proto.NewFormatter(buf, " ")
 	formatter.Format(g.protoSrc)
-	return g.fs.WriteFile(g.pbFilePath, buf.String(), true)
+	err = g.fs.WriteFile(g.pbFilePath, buf.String(), true)
+	if err != nil {
+		return err
+	}
+	if viper.GetString("gk_folder") != "" {
+		g.pbFilePath = path.Join(viper.GetString("gk_folder"), g.pbFilePath)
+	}
+	cmd := exec.Command("protoc", g.pbFilePath, "--go_out=plugins=grpc:.")
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	if b, e := g.fs.Exists(g.compileFilePath); e != nil {
+		return e
+	} else {
+		if b {
+			return
+		}
+	}
+	if runtime.GOOS == "windows" {
+		err = g.fs.WriteFile(
+			g.compileFilePath,
+			fmt.Sprintf(`:: Install proto3.
+:: https://github.com/google/protobuf/releases
+:: Update protoc Go bindings via
+::  go get -u github.com/golang/protobuf/proto
+::  go get -u github.com/golang/protobuf/protoc-gen-go
+::
+:: See also
+::  https://github.com/grpc/grpc-go/tree/master/examples
+
+protoc %s.proto --go_out=plugins=grpc:.`, g.name),
+			false,
+		)
+	}
+	if runtime.GOOS == "darwin" {
+		return g.fs.WriteFile(
+			g.compileFilePath,
+			fmt.Sprintf(`#!/usr/bin/env sh
+
+# Install proto3 from source macOS only.
+#  brew install autoconf automake libtool
+#  git clone https://github.com/google/protobuf
+#  ./autogen.sh ; ./configure ; make ; make install
+#
+# Update protoc Go bindings via
+#  go get -u github.com/golang/protobuf/{proto,protoc-gen-go}
+#
+# See also
+#  https://github.com/grpc/grpc-go/tree/master/examples
+
+protoc %s.proto --go_out=plugins=grpc:.`, g.name),
+			false,
+		)
+	}
+	return g.fs.WriteFile(
+		g.compileFilePath,
+		fmt.Sprintf(`#!/usr/bin/env sh
+
+# Install proto3
+# sudo apt-get install -y git autoconf automake libtool curl make g++ unzip
+# git clone https://github.com/google/protobuf.git
+# cd protobuf/
+# ./autogen.sh
+# ./configure
+# make
+# make check
+# sudo make install
+# sudo ldconfig # refresh shared library cache.
+#
+# Update protoc Go bindings via
+#  go get -u github.com/golang/protobuf/{proto,protoc-gen-go}
+#
+# See also
+#  https://github.com/grpc/grpc-go/tree/master/examples
+
+protoc %s.proto --go_out=plugins=grpc:.`, g.name),
+		false,
+	)
 }
 func (g *generateGRPCTransportProto) getService() *proto.Service {
 	for i, e := range g.protoSrc.Elements {

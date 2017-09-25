@@ -116,7 +116,7 @@ func (g *GenerateService) Generate() (err error) {
 	if err != nil {
 		return err
 	}
-	tp := NewGenerateTransport(g.name,g.transport,g.methods)
+	tp := NewGenerateTransport(g.name, g.transport, g.methods)
 	err = tp.Generate()
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func (g *GenerateService) generateServiceMethods() {
 		exists := false
 		for _, v := range g.file.Methods {
 			if v.Name == m.Name && v.Struct.Type == "*"+g.serviceStructName {
-				logrus.Infof("Service method `%s` already exists so it will not be recreated.", v.Name)
+				logrus.Debugf("Service method `%s` already exists so it will not be recreated.", v.Name)
 				exists = true
 				break
 			}
@@ -178,7 +178,7 @@ func (g *GenerateService) generateServiceMethods() {
 func (g *GenerateService) generateServiceStruct() {
 	for _, v := range g.file.Structures {
 		if v.Name == g.serviceStructName {
-			logrus.Infof("Service `%s` structure already exists so it will not be recreated.", g.serviceStructName)
+			logrus.Debugf("Service `%s` structure already exists so it will not be recreated.", g.serviceStructName)
 			return
 		}
 	}
@@ -187,7 +187,7 @@ func (g *GenerateService) generateServiceStruct() {
 func (g *GenerateService) generateNewMethod() {
 	for _, v := range g.file.Methods {
 		if v.Name == "New" {
-			logrus.Infof("Service method `%s` already exists so it will not be recreated.", v.Name)
+			logrus.Debugf("Service method `%s` already exists so it will not be recreated.", v.Name)
 			return
 		}
 	}
@@ -220,7 +220,7 @@ func (g *GenerateService) generateNewBasicStructMethod() {
 	fn := fmt.Sprintf("New%s", utils.ToCamelCase(g.serviceStructName))
 	for _, v := range g.file.Methods {
 		if v.Name == fn {
-			logrus.Infof("Service method `%s` already exists so it will not be recreated.", v.Name)
+			logrus.Debugf("Service method `%s` already exists so it will not be recreated.", v.Name)
 			return
 		}
 	}
@@ -793,6 +793,16 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		}
 		if !makeMethdExists {
 			pt := NewPartialGenerator(nil)
+			bd := []jen.Code{
+				jen.Id("req").Op(":=").Id("request").Dot("").Call(
+					jen.Id(m.Name + "Request"),
+				),
+				jen.List(retList...).Op(":=").Id("s").Dot(m.Name).Call(mCallParam...),
+				jen.Return(jen.Id(m.Name+"Response").Values(respParam), jen.Nil()),
+			}
+			if len(mCallParam) == 1 {
+				bd = bd[1:]
+			}
 			pt.appendFunction(
 				"",
 				nil,
@@ -805,11 +815,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 					jen.Error(),
 				},
 				"",
-				jen.Id("req").Op(":=").Id("request").Dot("").Call(
-					jen.Id(m.Name+"Request"),
-				),
-				jen.List(retList...).Op(":=").Id("s").Dot(m.Name).Call(mCallParam...),
-				jen.Return(jen.Id(m.Name+"Response").Values(respParam), jen.Nil()),
+				bd...,
 			)
 			g.code.Raw().Commentf("Make%sEndpoint returns an endpoint that invokes %s on the service.", m.Name, m.Name)
 			g.code.NewLine()

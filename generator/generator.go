@@ -53,7 +53,7 @@ func (b *BaseGenerator) getMissingImports(imp []parser.NamedTypeValue, f *parser
 			}
 		}
 	}
-	if len(f.Imports) == 0 {
+	if len(imp) == 0 {
 		n = f.Imports
 	}
 	return n, nil
