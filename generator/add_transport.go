@@ -79,19 +79,21 @@ func (g *GenerateTransport) Generate() (err error) {
 		return
 	}
 	g.removeBadMethods()
+	mth := g.serviceInterface.Methods
+	g.removeUnwantedMethods()
 	if len(g.serviceInterface.Methods) == 0 {
 		logrus.Error("The service has no suitable methods please implement the interface methods")
 		return
 	}
 	switch g.transport {
 	case "http":
-		tbG := newGenerateHttpTransportBase(g.name, g.serviceInterface, g.methods)
-		err = tbG.Generate()
+		tG := newGenerateHttpTransport(g.name, g.serviceInterface, g.methods)
+		err = tG.Generate()
 		if err != nil {
 			return err
 		}
-		tG := newGenerateHttpTransport(g.name, g.serviceInterface, g.methods)
-		err = tG.Generate()
+		tbG := newGenerateHttpTransportBase(g.name, g.serviceInterface, g.methods, mth)
+		err = tbG.Generate()
 		if err != nil {
 			return err
 		}
@@ -127,18 +129,6 @@ func (g *GenerateTransport) serviceFound() bool {
 func (g *GenerateTransport) removeBadMethods() {
 	keepMethods := []parser.Method{}
 	for _, v := range g.serviceInterface.Methods {
-		if len(g.methods) > 0 {
-			notFound := true
-			for _, m := range g.methods {
-				if v.Name == m {
-					notFound = false
-					break
-				}
-			}
-			if notFound {
-				continue
-			}
-		}
 		if string(v.Name[0]) == strings.ToLower(string(v.Name[0])) {
 			logrus.Warnf("The method '%s' is private and will be ignored", v.Name)
 			continue
@@ -157,6 +147,25 @@ func (g *GenerateTransport) removeBadMethods() {
 			}
 		}
 
+	}
+	g.serviceInterface.Methods = keepMethods
+}
+func (g *GenerateTransport) removeUnwantedMethods() {
+	keepMethods := []parser.Method{}
+	for _, v := range g.serviceInterface.Methods {
+		if len(g.methods) > 0 {
+			notFound := true
+			for _, m := range g.methods {
+				if v.Name == m {
+					notFound = false
+					break
+				}
+			}
+			if notFound {
+				continue
+			}
+		}
+		keepMethods = append(keepMethods, v)
 	}
 	g.serviceInterface.Methods = keepMethods
 }
@@ -460,21 +469,26 @@ type generateHttpTransportBase struct {
 	BaseGenerator
 	name             string
 	methods          []string
+	allMethods       []parser.Method
 	interfaceName    string
 	destPath         string
 	filePath         string
+	file             *parser.File
+	httpFilePath     string
 	serviceInterface parser.Interface
 }
 
-func newGenerateHttpTransportBase(name string, serviceInterface parser.Interface, methods []string) Gen {
+func newGenerateHttpTransportBase(name string, serviceInterface parser.Interface, methods []string, allMethods []parser.Method) Gen {
 	t := &generateHttpTransportBase{
 		name:             name,
 		methods:          methods,
+		allMethods:       allMethods,
 		interfaceName:    utils.ToCamelCase(name + "Service"),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
 	t.filePath = path.Join(t.destPath, viper.GetString("gk_http_base_file_name"))
+	t.httpFilePath = path.Join(t.destPath, viper.GetString("gk_http_file_name"))
 	t.srcFile = jen.NewFilePath(t.destPath)
 	t.InitPg()
 	t.fs = fs.Get()
@@ -496,16 +510,50 @@ func (g *generateHttpTransportBase) Generate() (err error) {
 	})
 	g.code.NewLine()
 	handles := []jen.Code{}
-	for _, m := range g.serviceInterface.Methods {
-		handles = append(
-			handles,
-			jen.Id("make"+m.Name+"Handler").Call(
-				jen.Id("m"),
-				jen.Id("endpoints"),
-				jen.Id("options").Index(jen.Lit(m.Name)),
-			),
-		)
+	existingHttp := false
+	if b, err := g.fs.Exists(g.httpFilePath); err != nil {
+		return err
+	} else {
+		if b {
+			existingHttp = true
+		}
 	}
+	if existingHttp {
+		src, err := g.fs.ReadFile(g.httpFilePath)
+		if err != nil {
+			return err
+		}
+		g.file, err = parser.NewFileParser().Parse([]byte(src))
+		if err != nil {
+			return err
+		}
+		for _, m := range g.allMethods {
+			for _, v := range g.file.Methods {
+				if v.Name == "make"+m.Name+"Handler" {
+					handles = append(
+						handles,
+						jen.Id("make" + m.Name + "Handler").Call(
+							jen.Id("m"),
+							jen.Id("endpoints"),
+							jen.Id("options").Index(jen.Lit(m.Name)),
+						),
+					)
+				}
+			}
+		}
+	} else {
+		for _, m := range g.serviceInterface.Methods {
+			handles = append(
+				handles,
+				jen.Id("make" + m.Name + "Handler").Call(
+					jen.Id("m"),
+					jen.Id("endpoints"),
+					jen.Id("options").Index(jen.Lit(m.Name)),
+				),
+			)
+		}
+	}
+
 	body := append([]jen.Code{
 		jen.Id("m").Op(":=").Qual("net/http", "NewServeMux").Call()}, handles...)
 	body = append(body, jen.Return(jen.Id("m")))

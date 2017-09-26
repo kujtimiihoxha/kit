@@ -1160,6 +1160,9 @@ type generateCmdBase struct {
 	methods                            []string
 	destPath                           string
 	filePath                           string
+	httpDestPath                       string
+	httpFilePath                       string
+	httpFile                           *parser.File
 	generateSvcDefaultsMiddleware      bool
 	generateEndpointDefaultsMiddleware bool
 	serviceInterface                   parser.Interface
@@ -1173,9 +1176,11 @@ func newGenerateCmdBase(name string, serviceInterface parser.Interface,
 		destPath:                           fmt.Sprintf(viper.GetString("gk_cmd_service_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface:                   serviceInterface,
 		generateSvcDefaultsMiddleware:      generateSacDefaultsMiddleware,
+		httpDestPath:                       fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		generateEndpointDefaultsMiddleware: generateEndpointDefaultsMiddleware,
 	}
 	t.filePath = path.Join(t.destPath, viper.GetString("gk_cmd_base_file_name"))
+	t.httpFilePath = path.Join(t.httpDestPath, viper.GetString("gk_http_file_name"))
 	t.srcFile = jen.NewFile("service")
 	t.InitPg()
 	t.fs = fs.Get()
@@ -1199,6 +1204,31 @@ func (g *generateCmdBase) Generate() (err error) {
 	if err != nil {
 		return err
 	}
+	existingHttp := false
+	if b, err := g.fs.Exists(g.httpFilePath); err != nil {
+		return err
+	} else {
+		if b {
+			existingHttp = true
+		}
+	}
+	cd := []jen.Code{
+		jen.Id("g").Op("=").Id("&").Qual(
+			"github.com/oklog/oklog/pkg/group", "Group",
+		).Block(),
+	}
+	if existingHttp {
+		src, err := g.fs.ReadFile(g.httpFilePath)
+		if err != nil {
+			return err
+		}
+		g.httpFile, err = parser.NewFileParser().Parse([]byte(src))
+		if err != nil {
+			return err
+		}
+		cd = append(cd, jen.Id("initHttpHandler").Call(jen.Id("endpoints"), jen.Id("g")))
+	}
+	cd = append(cd, jen.Return(jen.Id("g")))
 	g.code.appendFunction(
 		"createService",
 		nil,
@@ -1209,66 +1239,56 @@ func (g *generateCmdBase) Generate() (err error) {
 			jen.Id("g").Id("*").Qual("github.com/oklog/oklog/pkg/group", "Group"),
 		},
 		"",
-		jen.Id("g").Op("=").Id("&").Qual(
-			"github.com/oklog/oklog/pkg/group", "Group",
-		).Block(),
-		jen.Id("initHttpHandler").Call(jen.Id("endpoints"), jen.Id("g")),
-		jen.Return(jen.Id("g")),
+		cd...,
 	)
 	g.code.NewLine()
-	opt := jen.Dict{}
-	for _, v := range g.serviceInterface.Methods {
-		if len(g.methods) > 0 {
-			notFound := true
-			for _, m := range g.methods {
-				if v.Name == m {
-					notFound = false
-					break
+	if existingHttp {
+		opt := jen.Dict{}
+		for _, v := range g.serviceInterface.Methods {
+			for _, m := range g.httpFile.Methods {
+				if m.Name == "make"+v.Name+"Handler" {
+					opt[jen.Lit(v.Name)] =
+						jen.Values(
+							jen.List(
+								jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorEncoder").Call(
+									jen.Qual(httpImport, "ErrorEncoder"),
+								),
+								jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorLogger").Call(jen.Id("logger")),
+								jen.Qual("github.com/go-kit/kit/transport/http", "ServerBefore").Call(
+									jen.Qual("github.com/go-kit/kit/tracing/opentracing", "HTTPToContext").Call(
+										jen.Id("tracer"),
+										jen.Lit(v.Name),
+										jen.Id("logger"),
+									),
+								),
+							),
+						)
 				}
 			}
-			if notFound {
-				continue
-			}
 		}
-		opt[jen.Lit(v.Name)] =
-			jen.Values(
-				jen.List(
-					jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorEncoder").Call(
-						jen.Qual(httpImport, "ErrorEncoder"),
-					),
-					jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorLogger").Call(jen.Id("logger")),
-					jen.Qual("github.com/go-kit/kit/transport/http", "ServerBefore").Call(
-						jen.Qual("github.com/go-kit/kit/tracing/opentracing", "HTTPToContext").Call(
-							jen.Id("tracer"),
-							jen.Lit(v.Name),
-							jen.Id("logger"),
-						),
-					),
-				),
-			)
+		pl := NewPartialGenerator(nil)
+		pl.Raw().Id("options").Op(":=").Map(jen.String()).Index().Qual(
+			"github.com/go-kit/kit/transport/http",
+			"ServerOption",
+		).Values(
+			opt,
+		).Line()
+		pl.Raw().Return(jen.Id("options"))
+		g.code.appendFunction(
+			"defaultHttpOptions",
+			nil,
+			[]jen.Code{
+				jen.Id("logger").Qual("github.com/go-kit/kit/log", "Logger"),
+				jen.Id("tracer").Qual("github.com/opentracing/opentracing-go", "Tracer"),
+			},
+			[]jen.Code{
+				jen.Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/http", "ServerOption"),
+			},
+			"",
+			pl.Raw(),
+		)
+		g.code.NewLine()
 	}
-	pl := NewPartialGenerator(nil)
-	pl.Raw().Id("options").Op(":=").Map(jen.String()).Index().Qual(
-		"github.com/go-kit/kit/transport/http",
-		"ServerOption",
-	).Values(
-		opt,
-	).Line()
-	pl.Raw().Return(jen.Id("options"))
-	g.code.appendFunction(
-		"defaultHttpOptions",
-		nil,
-		[]jen.Code{
-			jen.Id("logger").Qual("github.com/go-kit/kit/log", "Logger"),
-			jen.Id("tracer").Qual("github.com/opentracing/opentracing-go", "Tracer"),
-		},
-		[]jen.Code{
-			jen.Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/http", "ServerOption"),
-		},
-		"",
-		pl.Raw(),
-	)
-	g.code.NewLine()
 	if g.generateEndpointDefaultsMiddleware {
 		body := []jen.Code{}
 		mdw := map[string][]jen.Code{}
@@ -1346,6 +1366,8 @@ type generateCmd struct {
 	interfaceName                      string
 	destPath                           string
 	filePath                           string
+	httpDestPath                       string
+	httpFilePath                       string
 	generateSvcDefaultsMiddleware      bool
 	generateEndpointDefaultsMiddleware bool
 	serviceInterface                   parser.Interface
@@ -1358,11 +1380,13 @@ func newGenerateCmd(name string, serviceInterface parser.Interface,
 		methods:                            methods,
 		interfaceName:                      utils.ToCamelCase(name + "Service"),
 		destPath:                           fmt.Sprintf(viper.GetString("gk_cmd_service_path_format"), utils.ToLowerSnakeCase(name)),
+		httpDestPath:                       fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface:                   serviceInterface,
 		generateSvcDefaultsMiddleware:      generateSacDefaultsMiddleware,
 		generateEndpointDefaultsMiddleware: generateEndpointDefaultsMiddleware,
 	}
 	t.filePath = path.Join(t.destPath, viper.GetString("gk_cmd_svc_file_name"))
+	t.httpFilePath = path.Join(t.httpDestPath, viper.GetString("gk_http_file_name"))
 	t.srcFile = jen.NewFile("service")
 	t.InitPg()
 	t.fs = fs.Get()
@@ -1412,9 +1436,15 @@ func (g *generateCmd) Generate() (err error) {
 			p.Raw(),
 		)
 	}
-	err = g.generateInitHttp()
-	if err != nil {
+	if b, err := g.fs.Exists(g.httpFilePath); err != nil {
 		return err
+	} else {
+		if b {
+			err = g.generateInitHttp()
+			if err != nil {
+				return err
+			}
+		}
 	}
 	err = g.generateGetMiddleware()
 	if err != nil {
@@ -1427,7 +1457,6 @@ func (g *generateCmd) Generate() (err error) {
 		return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
 	}
 	tmpSrc := g.srcFile.GoString()
-	src += "\n" + g.code.Raw().GoString()
 	f, err := parser.NewFileParser().Parse([]byte(tmpSrc))
 	if err != nil {
 		return err
@@ -1438,7 +1467,60 @@ func (g *generateCmd) Generate() (err error) {
 		return err
 	}
 	if len(imp) > 0 {
-		src, err = g.AddImportsToFile(imp, src)
+		pSrc := g.code.Raw().GoString()
+		foundSameImport := false
+		inx := 0
+		// Small(stupid) workaround
+		txt := "abcdefghijkl"
+		mp := map[string]string{}
+		keep := imp
+		for a, i := range imp {
+			for _, v := range g.file.Imports {
+				if v.Type == i.Type && i.Name != v.Name {
+					mp[txt+i.Name] = v.Name
+					pSrc = strings.Replace(pSrc, i.Name+".", txt+i.Name+".", -1)
+					keep = append(imp[:a], imp[a+1:]...)
+				}
+			}
+		}
+
+		for a, i := range keep {
+			for _, v := range g.file.Imports {
+				if v.Name == i.Name {
+					foundSameImport = true
+					inx = a
+				}
+			}
+		}
+		oldName := keep[inx].Name
+		if foundSameImport {
+			a := 1
+			for {
+				canUse := true
+				for _, v := range g.file.Imports {
+					if fmt.Sprintf("%s%d", keep[inx].Name, a) == v.Name {
+						canUse = false
+						break
+					}
+				}
+				if canUse {
+					keep[inx].Name = fmt.Sprintf("%s%d", keep[inx].Name, a)
+					break
+				}
+				a++
+			}
+			pSrc = strings.Replace(pSrc, oldName+".", keep[inx].Name+".", -1)
+			for k, v := range mp {
+				pSrc = strings.Replace(pSrc, k+".", v+".", -1)
+			}
+			src += "\n" + pSrc
+		} else {
+			for k, v := range mp {
+				pSrc = strings.Replace(pSrc, k+".", v+".", -1)
+			}
+			src += "\n" + pSrc
+		}
+		src, err = g.AddImportsToFile(keep, src)
 		if err != nil {
 			return err
 		}
@@ -1572,6 +1654,7 @@ func (g *generateCmd) generateRun() (*PartialGenerator, error) {
 	pg.Raw().Id("g").Op(":=").Id("createService").Call(
 		jen.Id("eps"),
 	).Line()
+	pg.Raw().Id("initMetricsEndpoint").Call(jen.Id("g")).Line()
 	pg.Raw().Id("initCancelInterrupt").Call(jen.Id("g")).Line()
 	pg.Raw().Id("logger").Dot("Log").Call(
 		jen.Lit("exit"),
@@ -1657,13 +1740,9 @@ func (g *generateCmd) generateVars() {
 	}
 }
 func (g *generateCmd) generateInitHttp() (err error) {
-	foundMetric := false
 	for _, v := range g.file.Methods {
 		if v.Name == "initHttpHandler" {
 			return
-		}
-		if v.Name == "initMetricsEndpoint" && !g.generateFirstTime {
-			foundMetric = true
 		}
 	}
 	httpImport, err := utils.GetHttpTransportImportPath(g.name)
@@ -1677,9 +1756,6 @@ func (g *generateCmd) generateInitHttp() (err error) {
 	}
 
 	pt := NewPartialGenerator(nil)
-	if foundMetric {
-		pt.Raw().Id("initMetricsEndpoint").Call(jen.Id("g")).Line()
-	}
 	pt.Raw().Id("options").Op(":=").Id("defaultHttpOptions").Call(
 		jen.Id("logger"),
 		jen.Id("tracer"),

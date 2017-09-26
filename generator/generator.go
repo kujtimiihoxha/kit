@@ -58,6 +58,7 @@ func (b *BaseGenerator) getMissingImports(imp []parser.NamedTypeValue, f *parser
 	}
 	return n, nil
 }
+
 func (b *BaseGenerator) CreateFolderStructure(path string) error {
 	e, err := b.fs.Exists(path)
 	if err != nil {
