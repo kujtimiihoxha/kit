@@ -63,8 +63,8 @@ This command will do these things:
 `hello/cmd/service/service_gen.go`   
 `hello/cmd/main.go`
 
-**Notice** all the files that end with `_gen` will be regenerated when you add endpoints to your service and 
-you rerun `kit g s hello` 
+:warning: **Notice** all the files that end with `_gen` will be regenerated when you add endpoints to your service and 
+you rerun `kit g s hello` :warning: 
 
 You can run the service by running:
 ```bash
