@@ -985,7 +985,6 @@ func (g *generateGRPCTransport) Generate() (err error) {
 			if v.Name == fmt.Sprintf("make%sHandler", m.Name) {
 				handlerFound = true
 			}
-			fmt.Println(v.Name, v.Struct.Type)
 			if v.Name == m.Name && v.Struct.Type == "*grpcServer" {
 				funcFound = true
 			}

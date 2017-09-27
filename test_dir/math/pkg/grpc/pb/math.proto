@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package pb;
+
+
+//The Math service definition.
+service Math {
+ rpc Sum  (SumRequest ) returns (SumReply );
+ rpc Prod (ProdRequest) returns (ProdReply);
+}
+message SumRequest {
+ int32 a =1;
+ int32 b =2;
+}
+message SumReply {
+ int32 r =1;
+ string err =2;
+}
+message ProdRequest {
+ int32 a =1;
+ int32 b =2;
+}
+message ProdReply {
+ int32 r =1;
+ string err =2;
+}
