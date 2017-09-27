@@ -12,5 +12,6 @@ import (
 func NewHTTPHandler(endpoints endpoint.Endpoints, options map[string][]http.ServerOption) http1.Handler {
 	m := http1.NewServeMux()
 	makeSumHandler(m, endpoints, options["Sum"])
+	makeProdHandler(m, endpoints, options["Prod"])
 	return m
 }
