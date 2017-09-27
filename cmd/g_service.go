@@ -17,23 +17,23 @@ var initserviceCmd = &cobra.Command{
 			logrus.Error("You must provide a name for the service")
 			return
 		}
-		if viper.GetString("transport") == "grpc" {
+		if viper.GetString("g_s_transport") == "grpc" {
 			if !checkProtoc() {
 				return
 			}
 		}
 		emw := false
 		smw := false
-		if viper.GetBool("dmw") {
+		if viper.GetBool("g_s_dmw") {
 			emw = true
 			smw = true
 		} else {
-			emw = viper.GetBool("endpoint-mdw")
-			smw = viper.GetBool("svc-mdw")
+			emw = viper.GetBool("g_s_endpoint_mdw")
+			smw = viper.GetBool("g_s_svc_mdw")
 		}
 		g := generator.NewGenerateService(
 			args[0],
-			viper.GetString("transport"),
+			viper.GetString("g_s_transport"),
 			smw,
 			emw,
 			methods,
@@ -51,8 +51,8 @@ func init() {
 	initserviceCmd.Flags().StringArrayVarP(&methods, "methods", "m", []string{}, "Specify methods to be generated")
 	initserviceCmd.Flags().Bool("svc-mdw", false, "If set a default Logging and Instrumental middleware will be created and attached to the service")
 	initserviceCmd.Flags().Bool("endpoint-mdw", false, "If set a default Logging and Tracking middleware will be created and attached to the endpoint")
-	viper.BindPFlag("transport", initserviceCmd.Flags().Lookup("transport"))
-	viper.BindPFlag("dmw", initserviceCmd.Flags().Lookup("dmw"))
-	viper.BindPFlag("svc-mdw", initserviceCmd.Flags().Lookup("svc-mdw"))
-	viper.BindPFlag("endpoint-mdw", initserviceCmd.Flags().Lookup("endpoint-mdw"))
+	viper.BindPFlag("g_s_transport", initserviceCmd.Flags().Lookup("transport"))
+	viper.BindPFlag("g_s_dmw", initserviceCmd.Flags().Lookup("dmw"))
+	viper.BindPFlag("g_s_svc_mdw", initserviceCmd.Flags().Lookup("svc-mdw"))
+	viper.BindPFlag("g_s_endpoint_mdw", initserviceCmd.Flags().Lookup("endpoint-mdw"))
 }

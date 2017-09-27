@@ -20,5 +20,4 @@ import:
 - package: golang.org/x/tools
   subpackages:
   - imports
-- package: github.com/kujtimiihoxha/go-balanced-match
 - package: github.com/emicklei/proto

@@ -79,6 +79,12 @@ func (g *GenerateClient) Generate() (err error) {
 		if err != nil {
 			return err
 		}
+	case "grpc":
+		cg := newGenerateGRPCClient(g.name, g.serviceInterface, g.serviceFile)
+		err = cg.Generate()
+		if err != nil {
+			return err
+		}
 	default:
 		logrus.Warn("This transport type is not yet implemented")
 	}
@@ -319,6 +325,164 @@ func (g *generateHttpClient) generateDecodeEncodeMethods(endpointImport string) 
 				jen.Id("r").Dot("Body"),
 			).Dot("Decode").Call(jen.Id("&resp")),
 			jen.Return(jen.Id("resp"), jen.Err()),
+		)
+		g.code.NewLine()
+	}
+	return
+}
+
+type generateGRPCClient struct {
+	BaseGenerator
+	name             string
+	interfaceName    string
+	destPath         string
+	filePath         string
+	serviceInterface parser.Interface
+	serviceFile      *parser.File
+}
+
+func newGenerateGRPCClient(name string, serviceInterface parser.Interface, serviceFile *parser.File) Gen {
+	i := &generateGRPCClient{
+		name:             name,
+		interfaceName:    utils.ToCamelCase(name + "Service"),
+		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_client_path_format"), utils.ToLowerSnakeCase(name)),
+		serviceInterface: serviceInterface,
+		serviceFile:      serviceFile,
+	}
+	i.filePath = path.Join(i.destPath, viper.GetString("gk_grpc_client_file_name"))
+	i.srcFile = jen.NewFilePath(i.destPath)
+	i.InitPg()
+	i.fs = fs.Get()
+	return i
+}
+func (g *generateGRPCClient) Generate() (err error) {
+	g.CreateFolderStructure(g.destPath)
+	endpointImport, err := utils.GetEndpointImportPath(g.name)
+	if err != nil {
+		return err
+	}
+	serviceImport, err := utils.GetServiceImportPath(g.name)
+	if err != nil {
+		return err
+	}
+	pbImport, err := utils.GetPbImportPath(g.name)
+	if err != nil {
+		return err
+	}
+	g.code.appendMultilineComment([]string{
+		"New returns an AddService backed by a gRPC server at the other end",
+		" of the conn. The caller is responsible for constructing the conn, and",
+		"eventually closing the underlying transport. We bake-in certain middlewares,",
+		"implementing the client library pattern.",
+	})
+
+	g.code.NewLine()
+	handles := []jen.Code{}
+	respS := jen.Dict{}
+	for _, m := range g.serviceInterface.Methods {
+		respS[jen.Id(m.Name+"Endpoint")] = jen.Id(utils.ToLowerFirstCamelCase(m.Name) + "Endpoint")
+		handles = append(
+			handles,
+			jen.Var().Id(utils.ToLowerFirstCamelCase(m.Name)+"Endpoint").Qual(
+				"github.com/go-kit/kit/endpoint",
+				"Endpoint",
+			).Line().Block(
+				jen.Id(utils.ToLowerFirstCamelCase(m.Name)+"Endpoint").Op("=").Qual(
+					"github.com/go-kit/kit/transport/grpc",
+					"NewClient",
+				).Call(
+					jen.Id("conn"),
+					jen.Lit("pb."+utils.ToCamelCase(m.Name)),
+					jen.Lit(m.Name),
+					jen.Id(fmt.Sprintf("encode%sRequest", m.Name)),
+					jen.Id(fmt.Sprintf("decode%sResponse", m.Name)),
+					jen.Qual(pbImport, m.Name+"Reply").Block(),
+					jen.Id(fmt.Sprintf("options[\"%s\"]...", m.Name)),
+				).Dot("Endpoint").Call(),
+			).Line(),
+		)
+	}
+	body := append([]jen.Code{},
+		handles...,
+	)
+	body = append(
+		body,
+		jen.Return(
+			jen.Qual(endpointImport, "Endpoints").Values(
+				respS,
+			),
+			jen.Nil(),
+		),
+	)
+	g.code.appendFunction(
+		"New",
+		nil,
+		[]jen.Code{
+			jen.Id("conn").Id("*").Qual("google.golang.org/grpc", "ClientConn"),
+			jen.Id("options").Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/grpc", "ClientOption"),
+		},
+		[]jen.Code{
+			jen.Qual(serviceImport, g.serviceInterface.Name),
+			jen.Error(),
+		},
+		"",
+		body...,
+	)
+	err = g.generateDecodeEncodeMethods(endpointImport)
+	if err != nil {
+		return err
+	}
+	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), false)
+}
+func (g *generateGRPCClient) generateDecodeEncodeMethods(endpointImport string) (err error) {
+	for _, m := range g.serviceInterface.Methods {
+		g.code.NewLine()
+		g.code.appendMultilineComment([]string{
+			fmt.Sprintf("encode%sRequest is a transport/grpc.EncodeRequestFunc that converts a", m.Name),
+			" user-domain sum request to a gRPC request.",
+		})
+		g.code.NewLine()
+		g.code.appendFunction(
+			fmt.Sprintf("encode%sRequest", m.Name),
+			nil,
+			[]jen.Code{
+				jen.Id("_").Qual("context", "Context"),
+				jen.Id("request").Interface(),
+			},
+			[]jen.Code{
+				jen.Interface(),
+				jen.Error(),
+			},
+			"",
+			jen.Return(
+				jen.Nil(), jen.Qual("errors", "New").Call(
+					jen.Lit(fmt.Sprintf("'%s' Encoder is not impelemented", utils.ToCamelCase(g.name))),
+				),
+			),
+		)
+		g.code.NewLine()
+		g.code.appendMultilineComment([]string{
+			fmt.Sprintf("decode%sResponse is a transport/grpc.DecodeResponseFunc that converts", m.Name),
+			"a gRPC concat reply to a user-domain concat response.",
+		})
+		g.code.NewLine()
+		g.code.appendFunction(
+			fmt.Sprintf("decode%sResponse", m.Name),
+			nil,
+			[]jen.Code{
+				jen.Id("_").Qual("context", "Context"),
+				jen.Id("reply").Interface(),
+			},
+			[]jen.Code{
+				jen.Interface(),
+				jen.Error(),
+			},
+			"",
+			jen.Return(
+				jen.Nil(), jen.Qual("errors", "New").Call(
+					jen.Lit(fmt.Sprintf("'%s' Decoder is not impelemented", utils.ToCamelCase(g.name))),
+				),
+			),
 		)
 		g.code.NewLine()
 	}

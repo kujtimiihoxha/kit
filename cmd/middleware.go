@@ -17,7 +17,7 @@ var middlewareCmd = &cobra.Command{
 			logrus.Error("You must provide a name for the middleware")
 			return
 		}
-		sn := viper.GetString("service")
+		sn := viper.GetString("g_m_service")
 		if sn == "" {
 			logrus.Error("You must provide the name of the service")
 			return
@@ -25,12 +25,12 @@ var middlewareCmd = &cobra.Command{
 		g := generator.NewGenerateMiddleware(
 			args[0],
 			sn,
-			viper.GetBool("endpoint"),
+			viper.GetBool("g_m_endpoint"),
 		)
 		if err := g.Generate(); err != nil {
 			logrus.Error(err)
 		}
-		if viper.GetBool("endpoint") {
+		if viper.GetBool("g_m_endpoint") {
 			logrus.Info("Do not forget to append your endpoint middleware to your service middlewares")
 			logrus.Info("Add it to cmd/service/service.go#getEndpointMiddleware()")
 
@@ -46,8 +46,8 @@ func init() {
 	generateCmd.AddCommand(middlewareCmd)
 	middlewareCmd.Flags().StringP("service", "s", "",
 		"Service name that the middleware will be created for")
-	viper.BindPFlag("service", middlewareCmd.Flags().Lookup("service"))
+	viper.BindPFlag("g_m_service", middlewareCmd.Flags().Lookup("service"))
 	middlewareCmd.Flags().BoolP("endpoint", "e", false,
 		"If set create endpoint middleware")
-	viper.BindPFlag("endpoint", middlewareCmd.Flags().Lookup("endpoint"))
+	viper.BindPFlag("g_m_endpoint", middlewareCmd.Flags().Lookup("endpoint"))
 }

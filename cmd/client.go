@@ -10,7 +10,7 @@ import (
 // clientCmd represents the client command
 var clientCmd = &cobra.Command{
 	Use:     "client",
-	Short:   "Generate simple CLI client",
+	Short:   "Generate simple client lib",
 	Aliases: []string{"c"},
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
@@ -19,7 +19,7 @@ var clientCmd = &cobra.Command{
 		}
 		g := generator.NewGenerateClient(
 			args[0],
-			viper.GetString("transport"),
+			viper.GetString("g_c_transport"),
 		)
 		if err := g.Generate(); err != nil {
 			logrus.Error(err)
@@ -29,7 +29,8 @@ var clientCmd = &cobra.Command{
 
 func init() {
 	generateCmd.AddCommand(clientCmd)
-
+	clientCmd.Flags().StringP("transport", "t", "http", "The transport you want your client to be initiated")
+	viper.BindPFlag("g_c_transport", clientCmd.Flags().Lookup("transport"))
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command

@@ -1161,8 +1161,11 @@ type generateCmdBase struct {
 	destPath                           string
 	filePath                           string
 	httpDestPath                       string
+	grpcDestPath                       string
 	httpFilePath                       string
+	grpcFilePath                       string
 	httpFile                           *parser.File
+	grpcFile                           *parser.File
 	generateSvcDefaultsMiddleware      bool
 	generateEndpointDefaultsMiddleware bool
 	serviceInterface                   parser.Interface
@@ -1177,10 +1180,12 @@ func newGenerateCmdBase(name string, serviceInterface parser.Interface,
 		serviceInterface:                   serviceInterface,
 		generateSvcDefaultsMiddleware:      generateSacDefaultsMiddleware,
 		httpDestPath:                       fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
+		grpcDestPath:                       fmt.Sprintf(viper.GetString("gk_grpc_path_format"), utils.ToLowerSnakeCase(name)),
 		generateEndpointDefaultsMiddleware: generateEndpointDefaultsMiddleware,
 	}
 	t.filePath = path.Join(t.destPath, viper.GetString("gk_cmd_base_file_name"))
 	t.httpFilePath = path.Join(t.httpDestPath, viper.GetString("gk_http_file_name"))
+	t.grpcFilePath = path.Join(t.grpcDestPath, viper.GetString("gk_grpc_file_name"))
 	t.srcFile = jen.NewFile("service")
 	t.InitPg()
 	t.fs = fs.Get()
@@ -1212,6 +1217,14 @@ func (g *generateCmdBase) Generate() (err error) {
 			existingHttp = true
 		}
 	}
+	existingGRPC := false
+	if b, err := g.fs.Exists(g.grpcFilePath); err != nil {
+		return err
+	} else {
+		if b {
+			existingGRPC = true
+		}
+	}
 	cd := []jen.Code{
 		jen.Id("g").Op("=").Id("&").Qual(
 			"github.com/oklog/oklog/pkg/group", "Group",
@@ -1227,6 +1240,17 @@ func (g *generateCmdBase) Generate() (err error) {
 			return err
 		}
 		cd = append(cd, jen.Id("initHttpHandler").Call(jen.Id("endpoints"), jen.Id("g")))
+	}
+	if existingGRPC {
+		src, err := g.fs.ReadFile(g.grpcFilePath)
+		if err != nil {
+			return err
+		}
+		g.grpcFile, err = parser.NewFileParser().Parse([]byte(src))
+		if err != nil {
+			return err
+		}
+		cd = append(cd, jen.Id("initGRPCHandler").Call(jen.Id("endpoints"), jen.Id("g")))
 	}
 	cd = append(cd, jen.Return(jen.Id("g")))
 	g.code.appendFunction(
@@ -1283,6 +1307,50 @@ func (g *generateCmdBase) Generate() (err error) {
 			},
 			[]jen.Code{
 				jen.Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/http", "ServerOption"),
+			},
+			"",
+			pl.Raw(),
+		)
+		g.code.NewLine()
+	}
+	if existingGRPC {
+		opt := jen.Dict{}
+		for _, v := range g.serviceInterface.Methods {
+			for _, m := range g.grpcFile.Methods {
+				if m.Name == "make"+v.Name+"Handler" {
+					opt[jen.Lit(v.Name)] =
+						jen.Values(
+							jen.List(
+								jen.Qual("github.com/go-kit/kit/transport/grpc", "ServerErrorLogger").Call(jen.Id("logger")),
+								jen.Qual("github.com/go-kit/kit/transport/grpc", "ServerBefore").Call(
+									jen.Qual("github.com/go-kit/kit/tracing/opentracing", "GRPCToContext").Call(
+										jen.Id("tracer"),
+										jen.Lit(v.Name),
+										jen.Id("logger"),
+									),
+								),
+							),
+						)
+				}
+			}
+		}
+		pl := NewPartialGenerator(nil)
+		pl.Raw().Id("options").Op(":=").Map(jen.String()).Index().Qual(
+			"github.com/go-kit/kit/transport/grpc",
+			"ServerOption",
+		).Values(
+			opt,
+		).Line()
+		pl.Raw().Return(jen.Id("options"))
+		g.code.appendFunction(
+			"defaultGRPCOptions",
+			nil,
+			[]jen.Code{
+				jen.Id("logger").Qual("github.com/go-kit/kit/log", "Logger"),
+				jen.Id("tracer").Qual("github.com/opentracing/opentracing-go", "Tracer"),
+			},
+			[]jen.Code{
+				jen.Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/grpc", "ServerOption"),
 			},
 			"",
 			pl.Raw(),
@@ -1367,7 +1435,9 @@ type generateCmd struct {
 	destPath                           string
 	filePath                           string
 	httpDestPath                       string
+	grpcDestPath                       string
 	httpFilePath                       string
+	grpcFilePath                       string
 	generateSvcDefaultsMiddleware      bool
 	generateEndpointDefaultsMiddleware bool
 	serviceInterface                   parser.Interface
@@ -1381,12 +1451,14 @@ func newGenerateCmd(name string, serviceInterface parser.Interface,
 		interfaceName:                      utils.ToCamelCase(name + "Service"),
 		destPath:                           fmt.Sprintf(viper.GetString("gk_cmd_service_path_format"), utils.ToLowerSnakeCase(name)),
 		httpDestPath:                       fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
+		grpcDestPath:                       fmt.Sprintf(viper.GetString("gk_grpc_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface:                   serviceInterface,
 		generateSvcDefaultsMiddleware:      generateSacDefaultsMiddleware,
 		generateEndpointDefaultsMiddleware: generateEndpointDefaultsMiddleware,
 	}
 	t.filePath = path.Join(t.destPath, viper.GetString("gk_cmd_svc_file_name"))
 	t.httpFilePath = path.Join(t.httpDestPath, viper.GetString("gk_http_file_name"))
+	t.grpcFilePath = path.Join(t.grpcDestPath, viper.GetString("gk_grpc_file_name"))
 	t.srcFile = jen.NewFile("service")
 	t.InitPg()
 	t.fs = fs.Get()
@@ -1441,6 +1513,16 @@ func (g *generateCmd) Generate() (err error) {
 	} else {
 		if b {
 			err = g.generateInitHttp()
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if b, err := g.fs.Exists(g.grpcFilePath); err != nil {
+		return err
+	} else {
+		if b {
+			err = g.generateInitGRPC()
 			if err != nil {
 				return err
 			}
@@ -1803,6 +1885,89 @@ func (g *generateCmd) generateInitHttp() (err error) {
 	g.code.NewLine()
 	g.code.appendFunction(
 		"initHttpHandler",
+		nil,
+		[]jen.Code{
+			jen.Id("endpoints").Qual(epImport, "Endpoints"),
+			jen.Id("g").Id("*").Qual("github.com/oklog/oklog/pkg/group", "Group"),
+		},
+		[]jen.Code{},
+		"",
+		pt.Raw(),
+	)
+	return
+}
+func (g *generateCmd) generateInitGRPC() (err error) {
+	for _, v := range g.file.Methods {
+		if v.Name == "initGRPCHandler" {
+			return
+		}
+	}
+	grpcImport, err := utils.GetGRPCTransportImportPath(g.name)
+	if err != nil {
+		return err
+	}
+	pbImport, err := utils.GetPbImportPath(g.name)
+	if err != nil {
+		return err
+	}
+
+	epImport, err := utils.GetEndpointImportPath(g.name)
+	if err != nil {
+		return err
+	}
+
+	pt := NewPartialGenerator(nil)
+	pt.Raw().Id("options").Op(":=").Id("defaultGRPCOptions").Call(
+		jen.Id("logger"),
+		jen.Id("tracer"),
+	).Line().Comment("Add your GRPC options here").Line().Line()
+	pt.Raw().Id("grpcServer").Op(":=").Qual(grpcImport, "NewGRPCServer").Call(
+		jen.Id("endpoints"),
+		jen.Id("options"),
+	).Line()
+
+	pt.Raw().List(jen.Id("grpcListener"), jen.Err()).Op(":=").Qual("net", "Listen").Call(
+		jen.Lit("tcp"),
+		jen.Id("*grpcAddr"),
+	).Line()
+	pt.Raw().If(
+		jen.Err().Op("!=").Nil().Block(
+			jen.Id("logger").Dot("Log").Call(
+				jen.Lit("transport"),
+				jen.Lit("gRPC"),
+				jen.Lit("during"),
+				jen.Lit("Listen"),
+				jen.Lit("err"),
+				jen.Err(),
+			),
+		),
+	).Line()
+	pt.Raw().Id("g").Dot("Add").Call(
+		jen.Func().Params().Error().Block(
+			jen.Id("logger").Dot("Log").Call(
+				jen.Lit("transport"),
+				jen.Lit("gRPC"),
+				jen.Lit("addr"),
+				jen.Id("*grpcAddr"),
+			),
+			jen.Id("baseServer").Op(":=").Qual("google.golang.org/grpc", "NewServer").Call(),
+			jen.Qual(pbImport, fmt.Sprintf("Register%sServer", utils.ToCamelCase(g.name))).Call(
+				jen.Id("baseServer"),
+				jen.Id("grpcServer"),
+			),
+			jen.Return(
+				jen.Id("baseServer").Dot("Serve").Call(
+					jen.Id("grpcListener"),
+				),
+			),
+		),
+		jen.Func().Params(jen.Error()).Block(
+			jen.Id("grpcListener").Dot("Close").Call(),
+		),
+	).Line()
+	g.code.NewLine()
+	g.code.appendFunction(
+		"initGRPCHandler",
 		nil,
 		[]jen.Code{
 			jen.Id("endpoints").Qual(epImport, "Endpoints"),
