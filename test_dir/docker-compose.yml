@@ -1,23 +1,23 @@
-version: '2'
+version: "2"
 services:
-  math_svc:
+  math:
     build:
       context: .
       dockerfile: math/Dockerfile
-    ports:
-      - 8811:8081
-      - 8812:8082
     restart: always
     volumes:
-      - .:/go/src/github.com/kujtimiihoxha/kit/test_dir
-    container_name: math_svc
-  strings_svc:
+    - .:/go/src/github.com/kujtimiihoxha/kit/test_dir
+    container_name: ""
+    ports:
+    - 8800:8081
+    - 8801:8082
+  strings:
     build:
       context: .
       dockerfile: strings/Dockerfile
-    ports:
-      - 8813:8081
     restart: always
     volumes:
-      - .:/go/src/github.com/kujtimiihoxha/kit/test_dir
-    container_name: strings_svc
+    - .:/go/src/github.com/kujtimiihoxha/kit/test_dir
+    container_name: ""
+    ports:
+    - 8802:8081

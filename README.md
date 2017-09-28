@@ -17,7 +17,7 @@ GoKit Cli needs to ne installed using `go get` and `go install` so `Go` is a req
  - [Generate the service](#generate-the-service)
  - [Generate the client library](#generate-the-client-library)
  - [Generate new middlewares](#generate-new-middleware)
- - [TODO](#todo)
+ - [Enable docker integration](#enable-docker-integration)
  
 # Installation
 Before you install please read [prerequisites](#prerequisites)
@@ -106,9 +106,17 @@ func main() {
 kit g m hi -s hello
 kit g m hi -s hello -e # if you want to add endpoint middleware
 ```
-The only thing left to do is add your middleware logic.
+The only thing left to do is add your middleware logic and wire the middleware with your service/endpoint.
+# Enable docker integration
 
-# TODO
- - [ ] Implement `thrift` transport
- - [ ] Add docker integration
- - [ ] Add file watcher 
+```bash
+kit g d
+```
+This will add the individual service docker files and one `docker-compose.yml` file that will allow you to start 
+your services.
+To start your services just run 
+```bash
+docker-compose up
+```
+
+If you change something in your code just restart the docker containers using `docker-compose restart`.

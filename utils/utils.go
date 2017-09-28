@@ -146,6 +146,20 @@ func GetHttpTransportImportPath(name string) (string, error) {
 	httpImports := projectPath + "/" + epPath
 	return httpImports, nil
 }
+func GetDockerFileProjecPath() (string, error) {
+	gosrc := GetGOPATH() + "/src/"
+	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if viper.GetString("gk_folder") != "" {
+		pwd += "/" + viper.GetString("gk_folder")
+	}
+	pwd = strings.Replace(pwd, "\\", "/", -1)
+	projectPath := strings.Replace(pwd, gosrc, "", 1)
+	return projectPath, nil
+}
 
 func GetGOPATH() string {
 	if viper.GetString("GOPATH") != "" {

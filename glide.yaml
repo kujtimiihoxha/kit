@@ -1,4 +1,4 @@
-package: github.com/kujtimiihoxha/gk-cli
+package: github.com/kujtimiihoxha/kit
 import:
 - package: github.com/spf13/cobra
   subpackages:
@@ -21,3 +21,4 @@ import:
   subpackages:
   - imports
 - package: github.com/emicklei/proto
+- package: github.com/go-yaml/yaml
