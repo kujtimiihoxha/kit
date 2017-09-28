@@ -2,11 +2,12 @@ package fs
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/Songmu/prompter"
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
-	"os"
 )
 
 type FileSystem interface {
@@ -42,6 +43,7 @@ func (f *DefaultFs) init(dir string) {
 		f.Fs = inFs
 	}
 }
+
 func (f *DefaultFs) ReadFile(path string) (string, error) {
 	d, err := afero.ReadFile(f.Fs, path)
 	return string(d), err

@@ -3,10 +3,6 @@ package parser
 import (
 	"testing"
 
-	"fmt"
-
-	"runtime"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -105,6 +101,38 @@ func TestFileParser_ParseVariablesConstants(t *testing.T) {
 	})
 }
 
-func TestName(t *testing.T) {
-	fmt.Println(runtime.GOOS)
+func TestFileParser_ParseMiddlewareFuncType(t *testing.T) {
+	fp := NewFileParser()
+	f, err := fp.Parse([]byte(
+		`package main
+			type Middleware func(int) int
+		`))
+	Convey("Test if parser parses file without errors", t, func() {
+		So(err, ShouldBeNil)
+		Convey("Test if middleware func type is found", func() {
+			expect := FuncType{
+				Name: "Middleware",
+				Parameters: []NamedTypeValue{
+					{
+						Name: "i0",
+						Type: "int",
+					},
+				},
+				Results: []NamedTypeValue{
+					{
+						Name: "i0",
+						Type: "int",
+					},
+				},
+			}
+			So(len(f.FuncType.Parameters), ShouldEqual, len(expect.Parameters))
+			So(len(f.FuncType.Results), ShouldEqual, len(expect.Results))
+			Convey("Test if middleware name and parameters/results are the same", func() {
+				So(f.FuncType.Name, ShouldEqual, expect.Name)
+				So(f.FuncType.Parameters[0].Name, ShouldEqual, expect.Parameters[0].Name)
+				So(f.FuncType.Parameters[0].Type, ShouldEqual, expect.Parameters[0].Type)
+				So(f.FuncType.Results[0].Type, ShouldEqual, expect.Results[0].Type)
+			})
+		})
+	})
 }
