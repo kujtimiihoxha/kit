@@ -597,7 +597,18 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 		resList := []jen.Code{}
 		sp := []jen.Code{}
 		ctxN := "ctx"
+		rpName := "response"
+		rqName := "request"
+		i := 0
 		for _, p := range m.Parameters {
+			if p.Name == rpName {
+				rpName = rpName + fmt.Sprintf("%d", i)
+				i++
+			}
+			if p.Name == rqName {
+				rqName = rqName + fmt.Sprintf("%d", i)
+				i++
+			}
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
@@ -623,6 +634,14 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 		rs := []jen.Code{}
 		rt := []jen.Code{}
 		for _, p := range m.Results {
+			if p.Name == rpName {
+				rpName = rpName + fmt.Sprintf("%d", i)
+				i++
+			}
+			if p.Name == rqName {
+				rqName = rqName + fmt.Sprintf("%d", i)
+				i++
+			}
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
@@ -642,14 +661,14 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 			rt = append(rt, jen.Id(p.Name))
 			resList = append(
 				resList,
-				jen.Id("response").Dot("").Call(jen.Id(m.Name+"Response")).Dot(utils.ToCamelCase(p.Name)),
+				jen.Id(rpName).Dot("").Call(jen.Id(m.Name+"Response")).Dot(utils.ToCamelCase(p.Name)),
 			)
 		}
 
 		body := []jen.Code{
-			jen.Id("request").Op(":=").Id(m.Name + "Request").Values(req),
-			jen.List(jen.Id("response"), jen.Err()).Op(":=").Id(stp).Dot(m.Name + "Endpoint").Call(
-				jen.List(jen.Id(ctxN), jen.Id("request")),
+			jen.Id(rqName).Op(":=").Id(m.Name + "Request").Values(req),
+			jen.List(jen.Id(rpName), jen.Err()).Op(":=").Id(stp).Dot(m.Name + "Endpoint").Call(
+				jen.List(jen.Id(ctxN), jen.Id(rpName)),
 			),
 			jen.If(
 				jen.Err().Op("!=").Nil().Block(
@@ -1265,26 +1284,44 @@ func (g *generateCmdBase) Generate() (err error) {
 		"",
 		cd...,
 	)
+
 	g.code.NewLine()
 	if existingHttp {
 		opt := jen.Dict{}
 		for _, v := range g.serviceInterface.Methods {
 			for _, m := range g.httpFile.Methods {
 				if m.Name == "make"+v.Name+"Handler" {
+					methodHasError := false
+					for _, p := range append(v.Parameters, v.Results...) {
+						if p.Type == "error" {
+							methodHasError = true
+						}
+					}
+					pt := []jen.Code{}
+					if methodHasError {
+						pt = append(
+							pt,
+							jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorEncoder").Call(
+								jen.Qual(httpImport, "ErrorEncoder"),
+							),
+						)
+					}
+
+					pt = append(
+						pt,
+						jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorLogger").Call(jen.Id("logger")),
+						jen.Qual("github.com/go-kit/kit/transport/http", "ServerBefore").Call(
+							jen.Qual("github.com/go-kit/kit/tracing/opentracing", "HTTPToContext").Call(
+								jen.Id("tracer"),
+								jen.Lit(v.Name),
+								jen.Id("logger"),
+							),
+						),
+					)
 					opt[jen.Lit(v.Name)] =
 						jen.Values(
 							jen.List(
-								jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorEncoder").Call(
-									jen.Qual(httpImport, "ErrorEncoder"),
-								),
-								jen.Qual("github.com/go-kit/kit/transport/http", "ServerErrorLogger").Call(jen.Id("logger")),
-								jen.Qual("github.com/go-kit/kit/transport/http", "ServerBefore").Call(
-									jen.Qual("github.com/go-kit/kit/tracing/opentracing", "HTTPToContext").Call(
-										jen.Id("tracer"),
-										jen.Lit(v.Name),
-										jen.Id("logger"),
-									),
-								),
+								pt...,
 							),
 						)
 				}

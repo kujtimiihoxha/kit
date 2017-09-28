@@ -335,6 +335,36 @@ func (g *generateHttpTransport) Generate() (err error) {
 				"the response as JSON to the response writer",
 			})
 			g.code.NewLine()
+			pt := []jen.Code{}
+			if hasError {
+				pt = append(
+					pt,
+					jen.If(
+						jen.List(jen.Id("f"), jen.Id("ok")).Op(":=").Id("response.").Call(
+							jen.Qual(
+								endpImports,
+								"Failure",
+							),
+						).Id(";").Id("ok").Id("&&").Id("f").Dot("Failed").Call().Op("!=").Nil(),
+					).Block(
+						jen.Id("ErrorEncoder").Call(
+							jen.Id("ctx"),
+							jen.Id("f").Dot("Failed").Call(),
+							jen.Id("w"),
+						),
+						jen.Return(jen.Nil()),
+					),
+				)
+			}
+			pt = append(
+				pt,
+				jen.Id("w").Dot("Header").Call().Dot("Set").Call(
+					jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
+				jen.Err().Op("=").Qual("encoding/json", "NewEncoder").Call(
+					jen.Id("w"),
+				).Dot("Encode").Call(jen.Id("response")),
+				jen.Return(),
+			)
 			g.code.appendFunction(
 				fmt.Sprintf("encode%sResponse", m.Name),
 				nil,
@@ -347,27 +377,7 @@ func (g *generateHttpTransport) Generate() (err error) {
 					jen.Id("err").Error(),
 				},
 				"",
-				jen.If(
-					jen.List(jen.Id("f"), jen.Id("ok")).Op(":=").Id("response.").Call(
-						jen.Qual(
-							endpImports,
-							"Failure",
-						),
-					).Id(";").Id("ok").Id("&&").Id("f").Dot("Failed").Call().Op("!=").Nil(),
-				).Block(
-					jen.Id("ErrorEncoder").Call(
-						jen.Id("ctx"),
-						jen.Id("f").Dot("Failed").Call(),
-						jen.Id("w"),
-					),
-					jen.Return(jen.Nil()),
-				),
-				jen.Id("w").Dot("Header").Call().Dot("Set").Call(
-					jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
-				jen.Err().Op("=").Qual("encoding/json", "NewEncoder").Call(
-					jen.Id("w"),
-				).Dot("Encode").Call(jen.Id("response")),
-				jen.Return(),
+				pt...,
 			)
 			g.code.NewLine()
 		}
