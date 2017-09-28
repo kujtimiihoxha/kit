@@ -12,6 +12,7 @@ import (
 type Endpoints struct {
 	SumEndpoint  endpoint.Endpoint
 	ProdEndpoint endpoint.Endpoint
+	SubEndpoint  endpoint.Endpoint
 }
 
 // New returns a Endpoints struct that wraps the provided service, and wires in all of the
@@ -19,6 +20,7 @@ type Endpoints struct {
 func New(s service.MathService, mdw map[string][]endpoint.Middleware) Endpoints {
 	eps := Endpoints{
 		ProdEndpoint: MakeProdEndpoint(s),
+		SubEndpoint:  MakeSubEndpoint(s),
 		SumEndpoint:  MakeSumEndpoint(s),
 	}
 	for _, m := range mdw["Sum"] {
@@ -26,6 +28,9 @@ func New(s service.MathService, mdw map[string][]endpoint.Middleware) Endpoints 
 	}
 	for _, m := range mdw["Prod"] {
 		eps.ProdEndpoint = m(eps.ProdEndpoint)
+	}
+	for _, m := range mdw["Sub"] {
+		eps.SubEndpoint = m(eps.SubEndpoint)
 	}
 	return eps
 }

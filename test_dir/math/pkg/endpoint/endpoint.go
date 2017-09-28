@@ -97,3 +97,45 @@ func (e Endpoints) Prod(ctx context.Context, a int, b int) (r int, err error) {
 	}
 	return response.(ProdResponse).R, response.(ProdResponse).Err
 }
+
+// SubRequest collects the request parameters for the Sub method.
+type SubRequest struct {
+	A int `json:"a"`
+	B int `json:"b"`
+}
+
+// SubResponse collects the response parameters for the Sub method.
+type SubResponse struct {
+	R   int   `json:"r"`
+	Err error `json:"err"`
+}
+
+// MakeSubEndpoint returns an endpoint that invokes Sub on the service.
+func MakeSubEndpoint(s service.MathService) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(SubRequest)
+		r, err := s.Sub(ctx, req.A, req.B)
+		return SubResponse{
+			Err: err,
+			R:   r,
+		}, nil
+	}
+}
+
+// Failed implements Failer.
+func (r SubResponse) Failed() error {
+	return r.Err
+}
+
+// Sub implements Service. Primarily useful in a client.
+func (e Endpoints) Sub(ctx context.Context, a int, b int) (r int, err error) {
+	request := SubRequest{
+		A: a,
+		B: b,
+	}
+	response, err := e.SubEndpoint(ctx, request)
+	if err != nil {
+		return
+	}
+	return response.(SubResponse).R, response.(SubResponse).Err
+}

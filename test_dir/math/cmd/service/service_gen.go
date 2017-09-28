@@ -24,6 +24,7 @@ func createService(endpoints endpoint.Endpoints) (g *group.Group) {
 func defaultHttpOptions(logger log.Logger, tracer opentracinggo.Tracer) map[string][]http.ServerOption {
 	options := map[string][]http.ServerOption{
 		"Prod": {http.ServerErrorEncoder(http1.ErrorEncoder), http.ServerErrorLogger(logger), http.ServerBefore(opentracing.HTTPToContext(tracer, "Prod", logger))},
+		"Sub":  {http.ServerErrorEncoder(http1.ErrorEncoder), http.ServerErrorLogger(logger), http.ServerBefore(opentracing.HTTPToContext(tracer, "Sub", logger))},
 		"Sum":  {http.ServerErrorEncoder(http1.ErrorEncoder), http.ServerErrorLogger(logger), http.ServerBefore(opentracing.HTTPToContext(tracer, "Sum", logger))},
 	}
 	return options
@@ -38,6 +39,7 @@ func defaultGRPCOptions(logger log.Logger, tracer opentracinggo.Tracer) map[stri
 func addDefaultEndpointMiddleware(logger log.Logger, duration *prometheus.Summary, mw map[string][]endpoint1.Middleware) {
 	mw["Sum"] = []endpoint1.Middleware{endpoint.LoggingMiddleware(log.With(logger, "method", "Sum")), endpoint.InstrumentingMiddleware(duration.With("method", "Sum"))}
 	mw["Prod"] = []endpoint1.Middleware{endpoint.LoggingMiddleware(log.With(logger, "method", "Prod")), endpoint.InstrumentingMiddleware(duration.With("method", "Prod"))}
+	mw["Sub"] = []endpoint1.Middleware{endpoint.LoggingMiddleware(log.With(logger, "method", "Sub")), endpoint.InstrumentingMiddleware(duration.With("method", "Sub"))}
 }
 func addDefaultServiceMiddleware(logger log.Logger, mw []service.Middleware) []service.Middleware {
 	return append(mw, service.LoggingMiddleware(logger))

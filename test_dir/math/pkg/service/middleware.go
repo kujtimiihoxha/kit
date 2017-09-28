@@ -35,3 +35,10 @@ func (l loggingMiddleware) Prod(ctx context.Context, a int, b int) (r int, err e
 	}()
 	return l.next.Prod(ctx, a, b)
 }
+
+func (l loggingMiddleware) Sub(ctx context.Context, a int, b int) (r int, err error) {
+	defer func() {
+		l.logger.Log("method", "Sub", "a", a, "b", b, "r", r, "err", err)
+	}()
+	return l.next.Sub(ctx, a, b)
+}

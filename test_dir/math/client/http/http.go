@@ -4,17 +4,15 @@ import (
 	bytes "bytes"
 	context "context"
 	json "encoding/json"
-	"errors"
-	ioutil "io/ioutil"
-	http1 "net/http"
-	url "net/url"
-	strings "strings"
-
 	endpoint "github.com/go-kit/kit/endpoint"
 	http "github.com/go-kit/kit/transport/http"
 	endpoint1 "github.com/kujtimiihoxha/kit/test_dir/math/pkg/endpoint"
 	http2 "github.com/kujtimiihoxha/kit/test_dir/math/pkg/http"
 	service "github.com/kujtimiihoxha/kit/test_dir/math/pkg/service"
+	ioutil "io/ioutil"
+	http1 "net/http"
+	url "net/url"
+	strings "strings"
 )
 
 // New returns an AddService backed by an HTTP server living at the remote
@@ -38,8 +36,14 @@ func New(instance string, options map[string][]http.ClientOption) (service.MathS
 		prodEndpoint = http.NewClient("POST", copyURL(u, "/prod"), encodeHTTPGenericRequest, decodeProdResponse, options["Prod"]...).Endpoint()
 	}
 
+	var subEndpoint endpoint.Endpoint
+	{
+		subEndpoint = http.NewClient("POST", copyURL(u, "/sub"), encodeHTTPGenericRequest, decodeSubResponse, options["Sub"]...).Endpoint()
+	}
+
 	return endpoint1.Endpoints{
 		ProdEndpoint: prodEndpoint,
+		SubEndpoint:  subEndpoint,
 		SumEndpoint:  sumEndpoint,
 	}, nil
 }
@@ -75,12 +79,22 @@ func decodeSumResponse(_ context.Context, r *http1.Response) (interface{}, error
 //  decode the specific error message from the response body.
 func decodeProdResponse(_ context.Context, r *http1.Response) (interface{}, error) {
 	if r.StatusCode != http1.StatusOK {
-		if r.StatusCode == http1.StatusNotFound {
-			return nil, errors.New("resource not found")
-		}
-		return 0, http2.ErrorDecoder(r)
+		return nil, http2.ErrorDecoder(r)
 	}
 	var resp endpoint1.ProdResponse
+	err := json.NewDecoder(r.Body).Decode(&resp)
+	return resp, err
+}
+
+// decodeSubResponse is a transport/http.DecodeResponseFunc that decodes
+// a JSON-encoded concat response from the HTTP response body. If the response
+// as a non-200 status code, we will interpret that as an error and attempt to
+//  decode the specific error message from the response body.
+func decodeSubResponse(_ context.Context, r *http1.Response) (interface{}, error) {
+	if r.StatusCode != http1.StatusOK {
+		return nil, http2.ErrorDecoder(r)
+	}
+	var resp endpoint1.SubResponse
 	err := json.NewDecoder(r.Body).Decode(&resp)
 	return resp, err
 }

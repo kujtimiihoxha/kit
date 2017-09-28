@@ -7,6 +7,7 @@ type MathService interface {
 	// Add your methods here
 	Sum(ctx context.Context, a, b int) (r int, err error)
 	Prod(ctx context.Context, a, b int) (r int, err error)
+	Sub(ctx context.Context, a, b int) (r int, err error)
 }
 
 type basicMathService struct{}
@@ -32,4 +33,9 @@ func New(middleware []Middleware) MathService {
 		svc = m(svc)
 	}
 	return svc
+}
+
+func (ba *basicMathService) Sub(ctx context.Context, a int, b int) (r int, err error) {
+	// TODO implement the business logic of Sub
+	return a - b, err
 }
