@@ -22,8 +22,7 @@ var initserviceCmd = &cobra.Command{
 				return
 			}
 		}
-		emw := false
-		smw := false
+		var emw, smw bool
 		if viper.GetBool("g_s_dmw") {
 			emw = true
 			smw = true

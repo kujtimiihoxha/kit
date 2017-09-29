@@ -38,11 +38,11 @@ func getTestServiceInterface(name string) parser.Interface {
 		createTestMethod(
 			"Foo",
 			[]parser.NamedTypeValue{
-				parser.NewNameType("s","string"),
+				parser.NewNameType("s", "string"),
 			},
 			[]parser.NamedTypeValue{
-				parser.NewNameType("r","string"),
-				parser.NewNameType("err","error"),
+				parser.NewNameType("r", "string"),
+				parser.NewNameType("err", "error"),
 			},
 		),
 	})

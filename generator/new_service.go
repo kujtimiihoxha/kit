@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// NewService implements Gen and is used to create a new service.
 type NewService struct {
 	BaseGenerator
 	name          string
@@ -48,9 +49,7 @@ func (g *NewService) Generate() error {
 	g.code.Raw().Commentf("%s describes the service.", g.interfaceName).Line()
 	g.code.appendInterface(
 		g.interfaceName,
-		utils.ToJenCodeArray(
-			partial.Raw(),
-		),
+		[]jen.Code{partial.Raw()},
 	)
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), false)
 }

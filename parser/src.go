@@ -1,14 +1,11 @@
 package parser
 
-import (
-	"strings"
-)
-
+// File represents a go source file.
 type File struct {
-	Comment    string
-	Package    string
+	Comment string
+	Package string
 	// Only used to get the middleware type
-	FuncType    FuncType
+	FuncType   FuncType
 	Imports    []NamedTypeValue
 	Constants  []NamedTypeValue
 	Vars       []NamedTypeValue
@@ -17,23 +14,28 @@ type File struct {
 	Methods    []Method
 }
 
+// Struct stores go struct information.
 type Struct struct {
 	Name    string
 	Comment string
 	Vars    []NamedTypeValue
 }
 
+// FuncType is used to store e.x (type Middleware func(a)a) types
 type FuncType struct {
-	Name    string
+	Name       string
 	Parameters []NamedTypeValue
 	Results    []NamedTypeValue
 }
 
+// Interface stores go interface information.
 type Interface struct {
 	Name    string
 	Comment string
 	Methods []Method
 }
+
+// Method stores go method information.
 type Method struct {
 	Comment    string
 	Name       string
@@ -42,29 +44,32 @@ type Method struct {
 	Parameters []NamedTypeValue
 	Results    []NamedTypeValue
 }
+
+// NamedTypeValue  is used to store any type of name type = value ( e.x  var a = 2)
 type NamedTypeValue struct {
-	Name     string
-	Type     string
-	Value    string
-	HasValue bool
+	Name  string
+	Type  string
+	Value string
 }
 
+// NewNameType create a NamedTypeValue without a value.
 func NewNameType(name string, tp string) NamedTypeValue {
 	return NamedTypeValue{
-		Name:     name,
-		Type:     tp,
-		HasValue: false,
-	}
-}
-func NewNameTypeValue(name string, tp string, vl string) NamedTypeValue {
-	return NamedTypeValue{
-		Name:     name,
-		Type:     tp,
-		HasValue: true,
-		Value:    vl,
+		Name: name,
+		Type: tp,
 	}
 }
 
+// NewNameTypeValue create a NamedTypeValue with a value.
+func NewNameTypeValue(name string, tp string, vl string) NamedTypeValue {
+	return NamedTypeValue{
+		Name:  name,
+		Type:  tp,
+		Value: vl,
+	}
+}
+
+// NewMethod creates a new method.
 func NewMethod(name string, str NamedTypeValue, body string, parameters, results []NamedTypeValue) Method {
 	return Method{
 		Name:       name,
@@ -75,11 +80,8 @@ func NewMethod(name string, str NamedTypeValue, body string, parameters, results
 		Results:    results,
 	}
 }
-func NewMethodWithComment(name string, comment string, str NamedTypeValue, body string, parameters, results []NamedTypeValue) Method {
-	m := NewMethod(name, str, body, parameters, results)
-	m.Comment = prepareComments(comment)
-	return m
-}
+
+// NewInterface creates a new interface.
 func NewInterface(name string, methods []Method) Interface {
 	return Interface{
 		Name:    name,
@@ -87,19 +89,8 @@ func NewInterface(name string, methods []Method) Interface {
 		Methods: methods,
 	}
 }
-func NewInterfaceWithComment(name string, comment string, methods []Method) Interface {
-	i := NewInterface(name, methods)
-	i.Comment = prepareComments(comment)
-	return i
-}
-func prepareComments(comment string) string {
-	commentList := strings.Split(comment, "\n")
-	comment = ""
-	for _, v := range commentList {
-		comment += "// " + strings.TrimSpace(v) + "\n"
-	}
-	return comment
-}
+
+// NewStruct creates a new struct.
 func NewStruct(name string, vars []NamedTypeValue) Struct {
 	return Struct{
 		Name:    name,
@@ -107,12 +98,8 @@ func NewStruct(name string, vars []NamedTypeValue) Struct {
 		Vars:    vars,
 	}
 }
-func NewStructWithComment(name string, comment string, vars []NamedTypeValue) Struct {
-	s := NewStruct(name, vars)
-	s.Comment = prepareComments(comment)
-	return s
-}
 
+// NewFile creates a new empty file.
 func NewFile() File {
 	return File{
 		Interfaces: []Interface{},

@@ -10,23 +10,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-type FileSystem interface {
-	init(dir string)
-	ReadFile(path string) (string, error)
-	WriteFile(path string, data string, force bool) error
-	Mkdir(path string) error
-	MkdirAll(path string) error
-	FilePathSeparator() string
-	Exists(path string) (bool, error)
-}
+var defaultFs *KitFs
 
-var defaultFs *DefaultFs
-
-type DefaultFs struct {
+// KitFs wraps an afero.Fs
+type KitFs struct {
 	Fs afero.Fs
 }
 
-func (f *DefaultFs) init(dir string) {
+func (f *KitFs) init(dir string) {
 	var inFs afero.Fs
 	if viper.GetBool("gk_testing") {
 		inFs = afero.NewMemMapFs()
@@ -44,13 +35,16 @@ func (f *DefaultFs) init(dir string) {
 	}
 }
 
-func (f *DefaultFs) ReadFile(path string) (string, error) {
+// ReadFile reads the file from `path` and returns the content in string format
+// or returns an error if it occurs.
+func (f *KitFs) ReadFile(path string) (string, error) {
 	d, err := afero.ReadFile(f.Fs, path)
 	return string(d), err
 }
 
-func (f *DefaultFs) WriteFile(path string, data string, force bool) error {
-
+// WriteFile writs a file to the `path` with `data` as content, if `force` is set
+// to true it will override the file if it already exists.
+func (f *KitFs) WriteFile(path string, data string, force bool) error {
 	if b, _ := f.Exists(path); b && !(viper.GetBool("gk_force_override") || force) {
 		s, _ := f.ReadFile(path)
 		if s == data {
@@ -65,30 +59,36 @@ func (f *DefaultFs) WriteFile(path string, data string, force bool) error {
 	return afero.WriteFile(f.Fs, path, []byte(data), os.ModePerm)
 }
 
-func (f *DefaultFs) Mkdir(path string) error {
-	return f.Fs.Mkdir(path, os.ModePerm)
+// Mkdir creates a directory.
+func (f *KitFs) Mkdir(dir string) error {
+	return f.Fs.Mkdir(dir, os.ModePerm)
 }
 
-func (f *DefaultFs) MkdirAll(path string) error {
+// MkdirAll creates a directory and its parents if they don't exist.
+func (f *KitFs) MkdirAll(path string) error {
 	return f.Fs.MkdirAll(path, os.ModePerm)
 }
-func (f *DefaultFs) FilePathSeparator() string {
-	return afero.FilePathSeparator
-}
-func (f *DefaultFs) Exists(path string) (bool, error) {
+
+// Exists returns true,nil if the dir/file exists or false,nil if
+// the dir/file does not exist, it will return an error if something
+// went wrong.
+func (f *KitFs) Exists(path string) (bool, error) {
 	return afero.Exists(f.Fs, path)
 }
-func NewDefaultFs(dir string) *DefaultFs {
-	dfs := &DefaultFs{}
+
+// NewDefaultFs creates a KitFs with `dir` as root.
+func NewDefaultFs(dir string) *KitFs {
+	dfs := &KitFs{}
 	dfs.init(dir)
 	defaultFs = dfs
 	return dfs
 }
 
-func Get() *DefaultFs {
+// Get returns a new KitFs if it was not initiated before or
+// it returns the existing defaultFs if it is initiated.
+func Get() *KitFs {
 	if defaultFs == nil {
 		return NewDefaultFs("")
-	} else {
-		return defaultFs
 	}
+	return defaultFs
 }

@@ -13,8 +13,10 @@ import (
 	"github.com/kujtimiihoxha/kit/utils"
 )
 
+// FileParser is the parser used by kit to parse go files.
 type FileParser struct{}
 
+// Parse will parse the go source.
 func (fp *FileParser) Parse(src []byte) (*File, error) {
 	f := NewFile()
 	// Create the AST by parsing src.
@@ -253,6 +255,8 @@ func (fp *FileParser) parseFieldListAsMethods(list *ast.FieldList) []Method {
 	}
 	return mth
 }
+
+// NewFileParser returns a new parser.
 func NewFileParser() *FileParser {
 	return &FileParser{}
 }

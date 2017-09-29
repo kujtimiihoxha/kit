@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// GenerateTransport implement Gen, is used to generate a service transport
 type GenerateTransport struct {
 	BaseGenerator
 	name              string
@@ -35,6 +36,7 @@ type GenerateTransport struct {
 	serviceInterface  parser.Interface
 }
 
+// NewGenerateTransport returns a transport generator.
 func NewGenerateTransport(name string, transport string, methods []string) Gen {
 	i := &GenerateTransport{
 		name:          name,
@@ -53,22 +55,21 @@ func NewGenerateTransport(name string, transport string, methods []string) Gen {
 	return i
 }
 
+// Generate generates the transport.
 func (g *GenerateTransport) Generate() (err error) {
-	for n, v := range SUPPORTED_TRANSPORTS {
+	for n, v := range SupportedTransports {
 		if v == g.transport {
 			break
-		} else if n == len(SUPPORTED_TRANSPORTS)-1 {
+		} else if n == len(SupportedTransports)-1 {
 			logrus.Errorf("Transport `%s` not supported", g.transport)
 			return
 		}
 	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			logrus.Errorf("Service %s was not found", g.name)
-			return nil
-		}
+	} else if !b {
+		logrus.Errorf("Service %s was not found", g.name)
+		return nil
 	}
 	svcSrc, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -87,12 +88,12 @@ func (g *GenerateTransport) Generate() (err error) {
 	}
 	switch g.transport {
 	case "http":
-		tG := newGenerateHttpTransport(g.name, g.serviceInterface, g.methods)
+		tG := newGenerateHTTPTransport(g.name, g.serviceInterface, g.methods)
 		err = tG.Generate()
 		if err != nil {
 			return err
 		}
-		tbG := newGenerateHttpTransportBase(g.name, g.serviceInterface, g.methods, mth)
+		tbG := newGenerateHTTPTransportBase(g.name, g.serviceInterface, g.methods, mth)
 		err = tbG.Generate()
 		if err != nil {
 			return err
@@ -180,7 +181,7 @@ func (g *GenerateTransport) removeUnwantedMethods() {
 	g.serviceInterface.Methods = keepMethods
 }
 
-type generateHttpTransport struct {
+type generateHTTPTransport struct {
 	BaseGenerator
 	name              string
 	methods           []string
@@ -192,8 +193,8 @@ type generateHttpTransport struct {
 	serviceInterface  parser.Interface
 }
 
-func newGenerateHttpTransport(name string, serviceInterface parser.Interface, methods []string) Gen {
-	t := &generateHttpTransport{
+func newGenerateHTTPTransport(name string, serviceInterface parser.Interface, methods []string) Gen {
+	t := &generateHTTPTransport{
 		name:             name,
 		methods:          methods,
 		interfaceName:    utils.ToCamelCase(name + "Service"),
@@ -206,7 +207,7 @@ func newGenerateHttpTransport(name string, serviceInterface parser.Interface, me
 	t.fs = fs.Get()
 	return t
 }
-func (g *generateHttpTransport) Generate() (err error) {
+func (g *generateHTTPTransport) Generate() (err error) {
 	err = g.CreateFolderStructure(g.destPath)
 	if err != nil {
 		return err
@@ -217,12 +218,10 @@ func (g *generateHttpTransport) Generate() (err error) {
 	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			g.generateFirstTime = true
-			f := jen.NewFile("http")
-			g.fs.WriteFile(g.filePath, f.GoString(), false)
-		}
+	} else if !b {
+		g.generateFirstTime = true
+		f := jen.NewFile("http")
+		g.fs.WriteFile(g.filePath, f.GoString(), false)
 	}
 	src, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -485,7 +484,7 @@ func (g *generateHttpTransport) Generate() (err error) {
 	return g.fs.WriteFile(g.filePath, s, true)
 }
 
-type generateHttpTransportBase struct {
+type generateHTTPTransportBase struct {
 	BaseGenerator
 	name             string
 	methods          []string
@@ -498,8 +497,8 @@ type generateHttpTransportBase struct {
 	serviceInterface parser.Interface
 }
 
-func newGenerateHttpTransportBase(name string, serviceInterface parser.Interface, methods []string, allMethods []parser.Method) Gen {
-	t := &generateHttpTransportBase{
+func newGenerateHTTPTransportBase(name string, serviceInterface parser.Interface, methods []string, allMethods []parser.Method) Gen {
+	t := &generateHTTPTransportBase{
 		name:             name,
 		methods:          methods,
 		allMethods:       allMethods,
@@ -514,7 +513,7 @@ func newGenerateHttpTransportBase(name string, serviceInterface parser.Interface
 	t.fs = fs.Get()
 	return t
 }
-func (g *generateHttpTransportBase) Generate() (err error) {
+func (g *generateHTTPTransportBase) Generate() (err error) {
 	err = g.CreateFolderStructure(g.destPath)
 	if err != nil {
 		return err
@@ -530,15 +529,13 @@ func (g *generateHttpTransportBase) Generate() (err error) {
 	})
 	g.code.NewLine()
 	handles := []jen.Code{}
-	existingHttp := false
+	existingHTTP := false
 	if b, err := g.fs.Exists(g.httpFilePath); err != nil {
 		return err
-	} else {
-		if b {
-			existingHttp = true
-		}
+	} else if b {
+		existingHTTP = true
 	}
-	if existingHttp {
+	if existingHTTP {
 		src, err := g.fs.ReadFile(g.httpFilePath)
 		if err != nil {
 			return err
@@ -627,22 +624,20 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 	g.CreateFolderStructure(g.destPath)
 	if b, err := g.fs.Exists(g.pbFilePath); err != nil {
 		return err
+	} else if !b {
+		g.generateFirstTime = true
+		g.protoSrc = &proto.Proto{}
 	} else {
-		if !b {
-			g.generateFirstTime = true
-			g.protoSrc = &proto.Proto{}
-		} else {
-			src, err := g.fs.ReadFile(g.pbFilePath)
-			if err != nil {
-				return err
-			}
-			r := bytes.NewReader([]byte(src))
-			parser := proto.NewParser(r)
-			definition, err := parser.Parse()
-			g.protoSrc = definition
-			if err != nil {
-				return err
-			}
+		src, err := g.fs.ReadFile(g.pbFilePath)
+		if err != nil {
+			return err
+		}
+		r := bytes.NewReader([]byte(src))
+		parser := proto.NewParser(r)
+		definition, err := parser.Parse()
+		g.protoSrc = definition
+		if err != nil {
+			return err
 		}
 	}
 	svc := &proto.Service{
@@ -654,7 +649,7 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 		Name: utils.ToCamelCase(g.name),
 	}
 	if g.generateFirstTime {
-		g.getServiceRpc(svc)
+		g.getServiceRPC(svc)
 		g.protoSrc.Elements = append(
 			g.protoSrc.Elements,
 			&proto.Syntax{
@@ -671,7 +666,7 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 			s = svc
 			g.protoSrc.Elements = append(g.protoSrc.Elements, s)
 		}
-		g.getServiceRpc(s)
+		g.getServiceRPC(s)
 	}
 	g.generateRequestResponse()
 	buf := new(bytes.Buffer)
@@ -692,13 +687,12 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 	}
 	if b, e := g.fs.Exists(g.compileFilePath); e != nil {
 		return e
-	} else {
-		if b {
-			return
-		}
+	} else if b {
+		return
 	}
+
 	if runtime.GOOS == "windows" {
-		err = g.fs.WriteFile(
+		return g.fs.WriteFile(
 			g.compileFilePath,
 			fmt.Sprintf(`:: Install proto3.
 :: https://github.com/google/protobuf/releases
@@ -794,7 +788,7 @@ func (g *generateGRPCTransportProto) generateRequestResponse() {
 		}
 	}
 }
-func (g *generateGRPCTransportProto) getServiceRpc(svc *proto.Service) {
+func (g *generateGRPCTransportProto) getServiceRPC(svc *proto.Service) {
 	for _, v := range g.serviceInterface.Methods {
 		found := false
 		for _, e := range svc.Elements {
@@ -867,10 +861,8 @@ func (g *generateGRPCTransportBase) Generate() (err error) {
 	existingGrpc := false
 	if b, err := g.fs.Exists(g.grpcFilePath); err != nil {
 		return err
-	} else {
-		if b {
-			existingGrpc = true
-		}
+	} else if b {
+		existingGrpc = true
 	}
 	vl := jen.Dict{}
 	fields := []jen.Code{}
@@ -965,12 +957,10 @@ func (g *generateGRPCTransport) Generate() (err error) {
 	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			g.generateFirstTime = true
-			f := jen.NewFile("grpc")
-			g.fs.WriteFile(g.filePath, f.GoString(), false)
-		}
+	} else if !b {
+		g.generateFirstTime = true
+		f := jen.NewFile("grpc")
+		g.fs.WriteFile(g.filePath, f.GoString(), false)
 	}
 	src, err := g.fs.ReadFile(g.filePath)
 	if err != nil {

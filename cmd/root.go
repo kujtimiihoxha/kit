@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -11,17 +10,19 @@ import (
 	"github.com/spf13/viper"
 )
 
+// RootCmd is the root command of kit
 var RootCmd = &cobra.Command{
-	Use:   "gk",
+	Use:   "kit",
 	Short: "Go-Kit CLI",
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
 }
 
+// Execute runs the root command
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		logrus.Error(err)
 		os.Exit(1)
 	}
 }

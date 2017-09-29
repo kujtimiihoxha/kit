@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"path"
 
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/dave/jennifer/jen"
 	"github.com/kujtimiihoxha/kit/fs"
 	"github.com/kujtimiihoxha/kit/parser"
 	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/spf13/viper"
-	"strings"
 )
 
+// GenerateMiddleware implements Gen and is used to generate middleware.
 type GenerateMiddleware struct {
 	BaseGenerator
 	name                 string
@@ -29,16 +31,7 @@ type GenerateMiddleware struct {
 	serviceGenerator     *generateServiceMiddleware
 }
 
-// NewGenerateService returns a initialized and ready generator.
-//
-// The name parameter is the name of the service that will be created
-// this name should be without the `Service` suffix
-//
-// The sMiddleware specifies if the default service middleware should be
-// created
-//
-// The eMiddleware specifies if the default endpoint middleware should be
-// created
+// NewGenerateMiddleware returns a initialized and ready generator.
 func NewGenerateMiddleware(name, serviceName string, ep bool) Gen {
 	i := &GenerateMiddleware{
 		name:                 name,
@@ -51,14 +44,14 @@ func NewGenerateMiddleware(name, serviceName string, ep bool) Gen {
 	i.fs = fs.Get()
 	return i
 }
+
+// Generate generates a new service middleware
 func (g *GenerateMiddleware) Generate() (err error) {
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			logrus.Errorf("Service %s was not found", g.serviceName)
-			return nil
-		}
+	} else if !b {
+		logrus.Errorf("Service %s was not found", g.serviceName)
+		return nil
 	}
 	svcSrc, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -75,9 +68,8 @@ func (g *GenerateMiddleware) Generate() (err error) {
 		g.destPath = fmt.Sprintf(viper.GetString("gk_endpoint_path_format"), utils.ToLowerSnakeCase(g.serviceName))
 		g.filePath = path.Join(g.destPath, viper.GetString("gk_endpoint_middleware_file_name"))
 		return g.generateEndpointMiddleware()
-	} else {
-		return g.generateServiceMiddleware()
 	}
+	return g.generateServiceMiddleware()
 }
 
 func (g *GenerateMiddleware) generateServiceMiddleware() (err error) {
@@ -173,12 +165,10 @@ func (g *GenerateMiddleware) generateEndpointMiddleware() (err error) {
 	g.CreateFolderStructure(g.destPath)
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			g.generateFirstTime = true
-			f := jen.NewFile("endpoint")
-			g.fs.WriteFile(g.filePath, f.GoString(), false)
-		}
+	} else if !b {
+		g.generateFirstTime = true
+		f := jen.NewFile("endpoint")
+		g.fs.WriteFile(g.filePath, f.GoString(), false)
 	}
 	epSrc, err := g.fs.ReadFile(g.filePath)
 	if err != nil {

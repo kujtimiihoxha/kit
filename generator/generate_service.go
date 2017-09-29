@@ -13,9 +13,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-// SUPPORTED_TRANSPORTS is an array containing the supported transport types.
-var SUPPORTED_TRANSPORTS = []string{"http", "grpc", "thrift"}
+// SupportedTransports is an array containing the supported transport types.
+var SupportedTransports = []string{"http", "grpc"}
 
+// GenerateService implements Gen and is used to generate the service.
 type GenerateService struct {
 	BaseGenerator
 	pg                       *PartialGenerator
@@ -32,15 +33,6 @@ type GenerateService struct {
 }
 
 // NewGenerateService returns a initialized and ready generator.
-//
-// The name parameter is the name of the service that will be created
-// this name should be without the `Service` suffix
-//
-// The sMiddleware specifies if the default service middleware should be
-// created
-//
-// The eMiddleware specifies if the default endpoint middleware should be
-// created
 func NewGenerateService(name, transport string, sMiddleware, eMiddleware bool, methods []string) Gen {
 	i := &GenerateService{
 		name:          name,
@@ -61,22 +53,22 @@ func NewGenerateService(name, transport string, sMiddleware, eMiddleware bool, m
 	i.fs = fs.Get()
 	return i
 }
+
+// Generate generates the service.
 func (g *GenerateService) Generate() (err error) {
-	for n, v := range SUPPORTED_TRANSPORTS {
+	for n, v := range SupportedTransports {
 		if v == g.transport {
 			break
-		} else if n == len(SUPPORTED_TRANSPORTS)-1 {
+		} else if n == len(SupportedTransports)-1 {
 			logrus.Errorf("Transport `%s` not supported", g.transport)
 			return
 		}
 	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			logrus.Errorf("Service %s was not found", g.name)
-			return nil
-		}
+	} else if !b {
+		logrus.Errorf("Service %s was not found", g.name)
+		return nil
 	}
 	svcSrc, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -97,6 +89,9 @@ func (g *GenerateService) Generate() (err error) {
 	g.generateNewMethod()
 	svcSrc += "\n" + g.pg.String()
 	s, err := utils.GoImportsSource(g.destPath, svcSrc)
+	if err != nil {
+		return err
+	}
 	err = g.fs.WriteFile(g.filePath, s, true)
 	if err != nil {
 		return err
@@ -130,7 +125,7 @@ func (g *GenerateService) Generate() (err error) {
 	return mG.Generate()
 }
 func (g *GenerateService) generateServiceMethods() {
-	stp := ""
+	var stp string
 	methodParameterNames := []parser.NamedTypeValue{}
 	for _, v := range g.serviceInterface.Methods {
 		methodParameterNames = append(methodParameterNames, v.Parameters...)
@@ -305,12 +300,10 @@ func (g *generateServiceMiddleware) Generate() error {
 	g.CreateFolderStructure(g.destPath)
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			g.generateFirstTime = true
-			f := jen.NewFile("service")
-			g.fs.WriteFile(g.filePath, f.GoString(), false)
-		}
+	} else if !b {
+		g.generateFirstTime = true
+		f := jen.NewFile("service")
+		g.fs.WriteFile(g.filePath, f.GoString(), false)
 	}
 	src, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -418,7 +411,7 @@ func (g *generateServiceMiddleware) Generate() error {
 }
 
 func (g *generateServiceMiddleware) generateMethodMiddleware(mdw string, df bool) {
-	stp := ""
+	var stp string
 	methodParameterNames := []parser.NamedTypeValue{}
 	for _, v := range g.serviceInterface.Methods {
 		methodParameterNames = append(methodParameterNames, v.Parameters...)
@@ -521,12 +514,10 @@ func (g *generateServiceEndpoints) Generate() error {
 	g.CreateFolderStructure(g.destPath)
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			g.generateFirstTime = true
-			f := jen.NewFile("endpoint")
-			g.fs.WriteFile(g.filePath, f.GoString(), false)
-		}
+	} else if !b {
+		g.generateFirstTime = true
+		f := jen.NewFile("endpoint")
+		g.fs.WriteFile(g.filePath, f.GoString(), false)
 	}
 	epSrc, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -575,7 +566,7 @@ func (g *generateServiceEndpoints) Generate() error {
 }
 
 func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
-	stp := ""
+	var stp string
 	methodParameterNames := []parser.NamedTypeValue{}
 	for _, v := range g.serviceInterface.Methods {
 		methodParameterNames = append(methodParameterNames, v.Parameters...)
@@ -1004,12 +995,10 @@ func (g *generateEndpointMiddleware) Generate() (err error) {
 	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			g.generateFirstTime = true
-			f := jen.NewFile("endpoint")
-			g.fs.WriteFile(g.filePath, f.GoString(), false)
-		}
+	} else if !b {
+		g.generateFirstTime = true
+		f := jen.NewFile("endpoint")
+		g.fs.WriteFile(g.filePath, f.GoString(), false)
 	}
 	src, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -1224,32 +1213,28 @@ func (g *generateCmdBase) Generate() (err error) {
 	if err != nil {
 		return err
 	}
-	httpImport, err := utils.GetHttpTransportImportPath(g.name)
+	httpImport, err := utils.GetHTTPTransportImportPath(g.name)
 	if err != nil {
 		return err
 	}
-	existingHttp := false
+	existingHTTP := false
 	if b, err := g.fs.Exists(g.httpFilePath); err != nil {
 		return err
-	} else {
-		if b {
-			existingHttp = true
-		}
+	} else if b {
+		existingHTTP = true
 	}
 	existingGRPC := false
 	if b, err := g.fs.Exists(g.grpcFilePath); err != nil {
 		return err
-	} else {
-		if b {
-			existingGRPC = true
-		}
+	} else if b {
+		existingGRPC = true
 	}
 	cd := []jen.Code{
 		jen.Id("g").Op("=").Id("&").Qual(
 			"github.com/oklog/oklog/pkg/group", "Group",
 		).Block(),
 	}
-	if existingHttp {
+	if existingHTTP {
 		src, err := g.fs.ReadFile(g.httpFilePath)
 		if err != nil {
 			return err
@@ -1286,7 +1271,7 @@ func (g *generateCmdBase) Generate() (err error) {
 	)
 
 	g.code.NewLine()
-	if existingHttp {
+	if existingHTTP {
 		opt := jen.Dict{}
 		for _, v := range g.serviceInterface.Methods {
 			for _, m := range g.httpFile.Methods {
@@ -1502,6 +1487,7 @@ func newGenerateCmd(name string, serviceInterface parser.Interface,
 	return t
 }
 
+// Generate generates the service main.
 func (g *generateCmd) Generate() (err error) {
 	err = g.CreateFolderStructure(g.destPath)
 	if err != nil {
@@ -1509,12 +1495,10 @@ func (g *generateCmd) Generate() (err error) {
 	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
-	} else {
-		if !b {
-			g.generateFirstTime = true
-			f := jen.NewFile("service")
-			g.fs.WriteFile(g.filePath, f.GoString(), false)
-		}
+	} else if !b {
+		g.generateFirstTime = true
+		f := jen.NewFile("service")
+		g.fs.WriteFile(g.filePath, f.GoString(), false)
 	}
 	src, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -1547,22 +1531,18 @@ func (g *generateCmd) Generate() (err error) {
 	}
 	if b, err := g.fs.Exists(g.httpFilePath); err != nil {
 		return err
-	} else {
-		if b {
-			err = g.generateInitHttp()
-			if err != nil {
-				return err
-			}
+	} else if b {
+		err = g.generateInitHTTP()
+		if err != nil {
+			return err
 		}
 	}
 	if b, err := g.fs.Exists(g.grpcFilePath); err != nil {
 		return err
-	} else {
-		if b {
-			err = g.generateInitGRPC()
-			if err != nil {
-				return err
-			}
+	} else if b {
+		err = g.generateInitGRPC()
+		if err != nil {
+			return err
 		}
 	}
 	err = g.generateGetMiddleware()
@@ -1649,7 +1629,6 @@ func (g *generateCmd) Generate() (err error) {
 		return err
 	}
 	return g.fs.WriteFile(g.filePath, s, true)
-	return nil
 }
 func (g *generateCmd) generateRun() (*PartialGenerator, error) {
 	pg := NewPartialGenerator(nil)
@@ -1858,13 +1837,13 @@ func (g *generateCmd) generateVars() {
 		g.code.NewLine()
 	}
 }
-func (g *generateCmd) generateInitHttp() (err error) {
+func (g *generateCmd) generateInitHTTP() (err error) {
 	for _, v := range g.file.Methods {
 		if v.Name == "initHttpHandler" {
 			return
 		}
 	}
-	httpImport, err := utils.GetHttpTransportImportPath(g.name)
+	httpImport, err := utils.GetHTTPTransportImportPath(g.name)
 	if err != nil {
 		return err
 	}
@@ -2204,10 +2183,8 @@ func (g *generateCmd) generateCmdMain() error {
 	g.CreateFolderStructure(mainDest)
 	if b, err := g.fs.Exists(mainFilePath); err != nil {
 		return err
-	} else {
-		if b {
-			return nil
-		}
+	} else if b {
+		return nil
 	}
 	cmdSvcImport, err := utils.GetCmdServiceImportPath(g.name)
 	if err != nil {

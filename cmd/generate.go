@@ -5,8 +5,8 @@ import (
 )
 
 var generateCmd = &cobra.Command{
-	Use:   "generate",
-	Short: "A set of useful generators",
+	Use:     "generate",
+	Short:   "A set of useful generators",
 	Aliases: []string{"g"},
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()

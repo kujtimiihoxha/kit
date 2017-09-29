@@ -14,18 +14,26 @@ import (
 	"github.com/spf13/viper"
 )
 
+// GenerateDocker implements Gen and is used to generate
+// docker files for services.
 type GenerateDocker struct {
 	BaseGenerator
 	dockerCompose *DockerCompose
 }
+
+// DockerCompose represents the docker-compose.yml
 type DockerCompose struct {
 	Version  string                    `yaml:"version"`
 	Services map[string]*DockerService `yaml:"services"`
 }
+
+// BuildService represents one docker service build.
 type BuildService struct {
 	Context    string `yaml:"context"`
 	DockerFile string `yaml:"dockerfile"`
 }
+
+// DockerService represents one docker service.
 type DockerService struct {
 	Build         BuildService `yaml:"build"`
 	Restart       string       `yaml:"restart"`
@@ -34,6 +42,7 @@ type DockerService struct {
 	Ports         []string `yaml:"ports"`
 }
 
+// NewGenerateDocker returns a new docker generator.
 func NewGenerateDocker() Gen {
 	i := &GenerateDocker{}
 	i.dockerCompose = &DockerCompose{}
@@ -43,6 +52,7 @@ func NewGenerateDocker() Gen {
 	return i
 }
 
+// Generate generates the docker configurations.
 func (g *GenerateDocker) Generate() (err error) {
 	f, err := g.fs.Fs.Open(".")
 	if err != nil {
@@ -82,7 +92,7 @@ func (g *GenerateDocker) Generate() (err error) {
 	return g.fs.WriteFile("docker-compose.yml", string(d), true)
 }
 func (g *GenerateDocker) generateDockerFile(name, svcFilePath, httpFilePath, grpcFilePath string) (err error) {
-	pth, err := utils.GetDockerFileProjecPath()
+	pth, err := utils.GetDockerFileProjectPath()
 	if err != nil {
 		return err
 	}
@@ -135,12 +145,12 @@ ENTRYPOINT  go install %s/%s/cmd && /go/bin/cmd
 }
 
 func (g *GenerateDocker) addToDockerCompose(name, pth, httpFilePath, grpcFilePath string) (err error) {
-	hasHttp := false
+	hasHTTP := false
 	hasGRPC := false
 	if b, err := g.fs.Exists(httpFilePath); err != nil {
 		return err
 	} else if b {
-		hasHttp = true
+		hasHTTP = true
 	}
 	if b, err := g.fs.Exists(grpcFilePath); err != nil {
 		return err
@@ -165,7 +175,7 @@ func (g *GenerateDocker) addToDockerCompose(name, pth, httpFilePath, grpcFilePat
 				".:" + pth,
 			},
 		}
-		if hasHttp {
+		if hasHTTP {
 			httpExpose := 8800
 			for {
 				ex := false
@@ -209,7 +219,6 @@ func (g *GenerateDocker) addToDockerCompose(name, pth, httpFilePath, grpcFilePat
 				g.dockerCompose.Services[name].Ports,
 				fmt.Sprintf("%d", grpcExpose)+":8082",
 			)
-			usedPorts = append(usedPorts, fmt.Sprintf("%d", grpcExpose))
 		}
 	}
 	return

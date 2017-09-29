@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// GenerateClient implements Gen and it is used to generate
+// the client lib of the service/
 type GenerateClient struct {
 	BaseGenerator
 	name             string
@@ -27,6 +29,7 @@ type GenerateClient struct {
 	serviceInterface parser.Interface
 }
 
+// NewGenerateClient returns a client generator.
 func NewGenerateClient(name string, transport string) Gen {
 	i := &GenerateClient{
 		name:            name,
@@ -42,22 +45,22 @@ func NewGenerateClient(name string, transport string) Gen {
 	i.fs = fs.Get()
 	return i
 }
+
+// Generate generates the client lib.
 func (g *GenerateClient) Generate() (err error) {
-	for n, v := range SUPPORTED_TRANSPORTS {
+	for n, v := range SupportedTransports {
 		if v == g.transport {
 			break
-		} else if n == len(SUPPORTED_TRANSPORTS)-1 {
+		} else if n == len(SupportedTransports)-1 {
 			logrus.Errorf("Transport `%s` not supported", g.transport)
 			return
 		}
 	}
 	if b, err := g.fs.Exists(g.serviceFilePath); err != nil {
 		return err
-	} else {
-		if !b {
-			logrus.Errorf("Service %s was not found", g.name)
-			return nil
-		}
+	} else if !b {
+		logrus.Errorf("Service %s was not found", g.name)
+		return nil
 	}
 	svcSrc, err := g.fs.ReadFile(g.serviceFilePath)
 	if err != nil {
@@ -74,7 +77,7 @@ func (g *GenerateClient) Generate() (err error) {
 	}
 	switch g.transport {
 	case "http":
-		cg := newGenerateHttpClient(g.name, g.serviceInterface, g.serviceFile)
+		cg := newGenerateHTTPClient(g.name, g.serviceInterface, g.serviceFile)
 		err = cg.Generate()
 		if err != nil {
 			return err
@@ -127,7 +130,7 @@ func (g *GenerateClient) removeBadMethods() {
 	g.serviceInterface.Methods = keepMethods
 }
 
-type generateHttpClient struct {
+type generateHTTPClient struct {
 	BaseGenerator
 	name             string
 	interfaceName    string
@@ -137,8 +140,8 @@ type generateHttpClient struct {
 	serviceFile      *parser.File
 }
 
-func newGenerateHttpClient(name string, serviceInterface parser.Interface, serviceFile *parser.File) Gen {
-	i := &generateHttpClient{
+func newGenerateHTTPClient(name string, serviceInterface parser.Interface, serviceFile *parser.File) Gen {
+	i := &generateHTTPClient{
 		name:             name,
 		interfaceName:    utils.ToCamelCase(name + "Service"),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_client_path_format"), utils.ToLowerSnakeCase(name)),
@@ -151,7 +154,7 @@ func newGenerateHttpClient(name string, serviceInterface parser.Interface, servi
 	i.fs = fs.Get()
 	return i
 }
-func (g *generateHttpClient) Generate() (err error) {
+func (g *generateHTTPClient) Generate() (err error) {
 	g.CreateFolderStructure(g.destPath)
 	endpointImport, err := utils.GetEndpointImportPath(g.name)
 	if err != nil {
@@ -260,8 +263,8 @@ func (g *generateHttpClient) Generate() (err error) {
 	g.code.NewLine()
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), false)
 }
-func (g *generateHttpClient) generateDecodeEncodeMethods(endpointImport string) (err error) {
-	httpImport, err := utils.GetHttpTransportImportPath(g.name)
+func (g *generateHTTPClient) generateDecodeEncodeMethods(endpointImport string) (err error) {
+	httpImport, err := utils.GetHTTPTransportImportPath(g.name)
 	if err != nil {
 		return err
 	}

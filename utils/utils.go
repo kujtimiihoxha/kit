@@ -9,33 +9,51 @@ import (
 	"fmt"
 
 	"github.com/alioygur/godash"
-	"github.com/dave/jennifer/jen"
 	"github.com/spf13/viper"
 	"golang.org/x/tools/imports"
 )
 
+// ToLowerFirstCamelCase returns the given string in camelcase formatted string
+// but with the first letter being lowercase.
 func ToLowerFirstCamelCase(s string) string {
+	if s == "" {
+		return s
+	}
 	if len(s) == 1 {
 		return strings.ToLower(string(s[0]))
 	}
 	return strings.ToLower(string(s[0])) + godash.ToCamelCase(s)[1:]
 }
+
+// ToUpperFirst returns the given string with the first letter being uppercase.
 func ToUpperFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	if len(s) == 1 {
+		return strings.ToLower(string(s[0]))
+	}
 	return strings.ToUpper(string(s[0])) + s[1:]
 }
+
+// ToLowerSnakeCase the given string in snake-case format.
 func ToLowerSnakeCase(s string) string {
 	return strings.ToLower(godash.ToSnakeCase(s))
 }
 
+// ToCamelCase the given string in camelcase format.
 func ToCamelCase(s string) string {
 	return godash.ToCamelCase(s)
 }
 
+// GoImportsSource is used to format and optimize imports the
+// given source.
 func GoImportsSource(path string, s string) (string, error) {
 	is, err := imports.Process(path, []byte(s), nil)
 	return string(is), err
 }
 
+// GetServiceImportPath returns the import path of the service interface.
 func GetServiceImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
@@ -54,6 +72,8 @@ func GetServiceImportPath(name string) (string, error) {
 	serviceImport := projectPath + "/" + svcPath
 	return serviceImport, nil
 }
+
+// GetCmdServiceImportPath returns the import path of the cmd service (used by cmd/main.go).
 func GetCmdServiceImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
@@ -73,6 +93,7 @@ func GetCmdServiceImportPath(name string) (string, error) {
 	return serviceImport, nil
 }
 
+// GetEndpointImportPath returns the import path of the service endpoints.
 func GetEndpointImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
@@ -91,6 +112,8 @@ func GetEndpointImportPath(name string) (string, error) {
 	endpointImport := projectPath + "/" + epPath
 	return endpointImport, nil
 }
+
+// GetGRPCTransportImportPath returns the import path of the service grpc transport.
 func GetGRPCTransportImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
@@ -109,6 +132,8 @@ func GetGRPCTransportImportPath(name string) (string, error) {
 	endpointImport := projectPath + "/" + epPath
 	return endpointImport, nil
 }
+
+// GetPbImportPath returns the import path of the generated service grpc pb.
 func GetPbImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
@@ -128,7 +153,8 @@ func GetPbImportPath(name string) (string, error) {
 	return endpointImport, nil
 }
 
-func GetHttpTransportImportPath(name string) (string, error) {
+// GetHTTPTransportImportPath returns the import path of the service http transport.
+func GetHTTPTransportImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
 	pwd, err := os.Getwd()
@@ -146,7 +172,9 @@ func GetHttpTransportImportPath(name string) (string, error) {
 	httpImports := projectPath + "/" + epPath
 	return httpImports, nil
 }
-func GetDockerFileProjecPath() (string, error) {
+
+// GetDockerFileProjectPath returns the path of the project.
+func GetDockerFileProjectPath() (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
 	pwd, err := os.Getwd()
@@ -161,15 +189,12 @@ func GetDockerFileProjecPath() (string, error) {
 	return projectPath, nil
 }
 
+// GetGOPATH returns the gopath.
 func GetGOPATH() string {
 	if viper.GetString("GOPATH") != "" {
 		return viper.GetString("GOPATH")
 	}
 	return defaultGOPATH()
-}
-
-func ToJenCodeArray(c jen.Code) []jen.Code {
-	return []jen.Code{c}
 }
 
 func defaultGOPATH() string {

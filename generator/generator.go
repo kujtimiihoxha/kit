@@ -20,16 +20,19 @@ import (
 	"github.com/kujtimiihoxha/kit/utils"
 )
 
+// Gen represents a generator.
 type Gen interface {
 	Generate() error
 }
 
+// BaseGenerator implements some basic generator functionality used by all generators.
 type BaseGenerator struct {
 	srcFile *jen.File
 	code    *PartialGenerator
-	fs      *fs.DefaultFs
+	fs      *fs.KitFs
 }
 
+// InitPg initiates the partial generator (used when we don't want to generate the full source only portions)
 func (b *BaseGenerator) InitPg() {
 	b.code = NewPartialGenerator(b.srcFile.Empty())
 }
@@ -59,6 +62,7 @@ func (b *BaseGenerator) getMissingImports(imp []parser.NamedTypeValue, f *parser
 	return n, nil
 }
 
+// CreateFolderStructure create folder structure of path
 func (b *BaseGenerator) CreateFolderStructure(path string) error {
 	e, err := b.fs.Exists(path)
 	if err != nil {
@@ -90,6 +94,8 @@ func (b *BaseGenerator) GenerateNameBySample(sample string, exclude []parser.Nam
 	}
 	return name
 }
+
+// EnsureThatWeUseQualifierIfNeeded is used to see if we need to import a path of a given type.
 func (b *BaseGenerator) EnsureThatWeUseQualifierIfNeeded(tp string, imp []parser.NamedTypeValue) string {
 	if t := strings.Split(tp, "."); len(t) > 0 {
 		s := t[0]
@@ -103,6 +109,8 @@ func (b *BaseGenerator) EnsureThatWeUseQualifierIfNeeded(tp string, imp []parser
 	}
 	return ""
 }
+
+// AddImportsToFile adds missing imports toa file that we edit with the generator
 func (b *BaseGenerator) AddImportsToFile(imp []parser.NamedTypeValue, src string) (string, error) {
 	// Create the AST by parsing src
 	fset := token.NewFileSet()
@@ -169,10 +177,12 @@ func (b *BaseGenerator) AddImportsToFile(imp []parser.NamedTypeValue, src string
 	return fmt.Sprintf("%s", buf.Bytes()), nil
 }
 
+// PartialGenerator wraps a jen statement
 type PartialGenerator struct {
 	raw *jen.Statement
 }
 
+// NewPartialGenerator returns a partial generator
 func NewPartialGenerator(st *jen.Statement) *PartialGenerator {
 	if st != nil {
 		return &PartialGenerator{
@@ -192,9 +202,13 @@ func (p *PartialGenerator) appendMultilineComment(c []string) {
 		p.raw.Comment(v)
 	}
 }
+
+// Raw returns the jen statement.
 func (p *PartialGenerator) Raw() *jen.Statement {
 	return p.raw
 }
+
+// String returns the source code string
 func (p *PartialGenerator) String() string {
 	return p.raw.GoString()
 }
@@ -205,6 +219,8 @@ func (p *PartialGenerator) appendInterface(name string, methods []jen.Code) {
 func (p *PartialGenerator) appendStruct(name string, fields ...jen.Code) {
 	p.raw.Type().Id(name).Struct(fields...).Line()
 }
+
+// NewLine insert a new line in code.
 func (p *PartialGenerator) NewLine() {
 	p.raw.Line()
 }
