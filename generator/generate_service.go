@@ -659,7 +659,7 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 		body := []jen.Code{
 			jen.Id(rqName).Op(":=").Id(m.Name + "Request").Values(req),
 			jen.List(jen.Id(rpName), jen.Err()).Op(":=").Id(stp).Dot(m.Name + "Endpoint").Call(
-				jen.List(jen.Id(ctxN), jen.Id(rpName)),
+				jen.List(jen.Id(ctxN), jen.Id(rqName)),
 			),
 			jen.If(
 				jen.Err().Op("!=").Nil().Block(
