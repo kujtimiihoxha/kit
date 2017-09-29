@@ -11,6 +11,7 @@ install:
   - glide install
 script:
     - go test -race -v ./...
+    - chmod +x coveralls.bash
     - ./coveralls.bash
 go:
   - 1.9.x
