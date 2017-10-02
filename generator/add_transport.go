@@ -13,6 +13,8 @@ import (
 
 	"runtime"
 
+	"errors"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/dave/jennifer/jen"
 	"github.com/emicklei/proto"
@@ -25,15 +27,14 @@ import (
 // GenerateTransport implement Gen, is used to generate a service transport
 type GenerateTransport struct {
 	BaseGenerator
-	name              string
-	transport         string
-	interfaceName     string
-	serviceStructName string
-	destPath          string
-	methods           []string
-	filePath          string
-	file              *parser.File
-	serviceInterface  parser.Interface
+	name             string
+	transport        string
+	interfaceName    string
+	destPath         string
+	methods          []string
+	filePath         string
+	file             *parser.File
+	serviceInterface parser.Interface
 }
 
 // NewGenerateTransport returns a transport generator.
@@ -45,7 +46,6 @@ func NewGenerateTransport(name string, transport string, methods []string) Gen {
 		methods:       methods,
 	}
 	i.filePath = path.Join(i.destPath, viper.GetString("gk_service_file_name"))
-	i.serviceStructName = utils.ToLowerFirstCamelCase(viper.GetString("gk_service_struct_prefix") + "-" + i.interfaceName)
 	i.transport = transport
 	// Not used.
 	i.srcFile = jen.NewFilePath("")
@@ -61,15 +61,13 @@ func (g *GenerateTransport) Generate() (err error) {
 		if v == g.transport {
 			break
 		} else if n == len(SupportedTransports)-1 {
-			logrus.Errorf("Transport `%s` not supported", g.transport)
-			return
+			return  errors.New(fmt.Sprintf("transport `%s` not supported", g.transport))
 		}
 	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
 	} else if !b {
-		logrus.Errorf("Service %s was not found", g.name)
-		return nil
+		return errors.New(fmt.Sprintf("service %s was not found", g.name))
 	}
 	svcSrc, err := g.fs.ReadFile(g.filePath)
 	if err != nil {
@@ -77,14 +75,13 @@ func (g *GenerateTransport) Generate() (err error) {
 	}
 	g.file, err = parser.NewFileParser().Parse([]byte(svcSrc))
 	if !g.serviceFound() {
-		return
+		return errors.New(fmt.Sprintf("could not find the service interface in `%s`", g.name))
 	}
 	g.removeBadMethods()
 	mth := g.serviceInterface.Methods
 	g.removeUnwantedMethods()
 	if len(g.serviceInterface.Methods) == 0 {
-		logrus.Error("The service has no suitable methods please implement the interface methods")
-		return
+		return errors.New("the service has no suitable methods please implement the interface methods")
 	}
 	switch g.transport {
 	case "http":
@@ -131,7 +128,6 @@ func (g *GenerateTransport) serviceFound() bool {
 			g.serviceInterface = v
 			return true
 		} else if n == len(g.file.Interfaces)-1 {
-			logrus.Errorf("Could not find the service interface in `%s`", g.name)
 			return false
 		}
 	}
