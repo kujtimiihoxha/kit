@@ -187,6 +187,68 @@ type TestService interface{
 				methods:       []string{},
 			},
 			wantErr: true,
+		}, {
+			name: "Test if grpc create successful",
+			fields: fields{
+				BaseGenerator: func() BaseGenerator {
+					b := BaseGenerator{}
+					b.srcFile = jen.NewFilePath("")
+					b.InitPg()
+					f := fs.NewDefaultFs("")
+					f.MkdirAll("test/pkg/service")
+					f.WriteFile("test/pkg/service/service.go", `package service
+					import "context"
+					type TestService interface{
+							Foo(ctx context.Context, a string)(a int, err error)
+					}`, true)
+					b.fs = f
+					return b
+				}(),
+				name: "test",
+				file: func() *parser.File {
+					f := fs.Get()
+					s, _ := f.ReadFile("test/pkg/service/service.go")
+					fl, _ := parser.NewFileParser().Parse([]byte(s))
+					return fl
+				}(),
+				interfaceName: "TestService",
+				transport:     "grpc",
+				filePath:      "test/pkg/service/service.go",
+				destPath:      "test/pkg/service",
+				methods:       []string{},
+			},
+			wantErr: false,
+		}, {
+			name: "Test if http create successful",
+			fields: fields{
+				BaseGenerator: func() BaseGenerator {
+					b := BaseGenerator{}
+					b.srcFile = jen.NewFilePath("")
+					b.InitPg()
+					f := fs.NewDefaultFs("")
+					f.MkdirAll("test/pkg/service")
+					f.WriteFile("test/pkg/service/service.go", `package service
+					import "context"
+					type TestService interface{
+							Foo(ctx context.Context, a string)(a int, err error)
+					}`, true)
+					b.fs = f
+					return b
+				}(),
+				name: "test",
+				file: func() *parser.File {
+					f := fs.Get()
+					s, _ := f.ReadFile("test/pkg/service/service.go")
+					fl, _ := parser.NewFileParser().Parse([]byte(s))
+					return fl
+				}(),
+				interfaceName: "TestService",
+				transport:     "http",
+				filePath:      "test/pkg/service/service.go",
+				destPath:      "test/pkg/service",
+				methods:       []string{},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -356,7 +418,7 @@ func TestGenerateTransport_removeBadMethods(t *testing.T) {
 		want   []parser.Method
 	}{
 		{
-			name: "Test if service interface is not found",
+			name: "Test if it does not remove wanted methods",
 			fields: fields{
 				BaseGenerator: func() BaseGenerator {
 					b := BaseGenerator{}
@@ -408,7 +470,7 @@ func TestGenerateTransport_removeBadMethods(t *testing.T) {
 			},
 		},
 		{
-			name: "Test if service interface is not found",
+			name: "Test if it removes unwanted methods",
 			fields: fields{
 				BaseGenerator: func() BaseGenerator {
 					b := BaseGenerator{}
@@ -555,7 +617,7 @@ func TestGenerateTransport_removeUnwantedMethods(t *testing.T) {
 				),
 			},
 		}, {
-			name: "Test if only selected methods are generated",
+			name: "Test if only ot does not do anything if no methods selected",
 			fields: fields{
 				BaseGenerator: func() BaseGenerator {
 					b := BaseGenerator{}
@@ -567,6 +629,7 @@ func TestGenerateTransport_removeUnwantedMethods(t *testing.T) {
 					import "context"
 					type TestService interface {
 					Foo(ctx context.Context,a int)(r string, err error)
+					Bar(ctx context.Context,a int)(r string, err error)
 					} `, true)
 					b.fs = f
 					return b
@@ -593,6 +656,19 @@ func TestGenerateTransport_removeUnwantedMethods(t *testing.T) {
 			want: []parser.Method{
 				parser.NewMethod(
 					"Foo",
+					parser.NamedTypeValue{},
+					"",
+					[]parser.NamedTypeValue{
+						parser.NewNameType("ctx", "context.Context"),
+						parser.NewNameType("a", "int"),
+					},
+					[]parser.NamedTypeValue{
+						parser.NewNameType("r", "string"),
+						parser.NewNameType("err", "error"),
+					},
+				),
+				parser.NewMethod(
+					"Bar",
 					parser.NamedTypeValue{},
 					"",
 					[]parser.NamedTypeValue{
@@ -639,7 +715,7 @@ func Test_newGenerateHTTPTransport(t *testing.T) {
 		args args
 		want Gen
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -667,7 +743,7 @@ func Test_generateHTTPTransport_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -701,7 +777,7 @@ func Test_newGenerateHTTPTransportBase(t *testing.T) {
 		args args
 		want Gen
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -730,7 +806,7 @@ func Test_generateHTTPTransportBase_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -764,7 +840,7 @@ func Test_newGenerateGRPCTransportProto(t *testing.T) {
 		args args
 		want Gen
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -793,7 +869,7 @@ func Test_generateGRPCTransportProto_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -834,7 +910,7 @@ func Test_generateGRPCTransportProto_getService(t *testing.T) {
 		fields fields
 		want   *proto.Service
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -874,7 +950,7 @@ func Test_generateGRPCTransportProto_generateRequestResponse(t *testing.T) {
 		name   string
 		fields fields
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -916,7 +992,7 @@ func Test_generateGRPCTransportProto_getServiceRPC(t *testing.T) {
 		fields fields
 		args   args
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -949,7 +1025,7 @@ func Test_newGenerateGRPCTransportBase(t *testing.T) {
 		args args
 		want Gen
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -978,7 +1054,7 @@ func Test_generateGRPCTransportBase_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1012,7 +1088,7 @@ func Test_newGenerateGRPCTransport(t *testing.T) {
 		args args
 		want Gen
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1040,7 +1116,7 @@ func Test_generateGRPCTransport_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

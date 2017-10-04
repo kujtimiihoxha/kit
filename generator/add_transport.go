@@ -61,7 +61,7 @@ func (g *GenerateTransport) Generate() (err error) {
 		if v == g.transport {
 			break
 		} else if n == len(SupportedTransports)-1 {
-			return  errors.New(fmt.Sprintf("transport `%s` not supported", g.transport))
+			return errors.New(fmt.Sprintf("transport `%s` not supported", g.transport))
 		}
 	}
 	if b, err := g.fs.Exists(g.filePath); err != nil {
@@ -113,12 +113,12 @@ func (g *GenerateTransport) Generate() (err error) {
 		}
 		logrus.Warn("===============================================================")
 		logrus.Warn("The GRPC implementation is not finished you need to update your")
-		logrus.Warn("the service proto buffer and run the compile script.")
+		logrus.Warn(" service proto buffer and run the compile script.")
 		logrus.Warn("---------------------------------------------------------------")
 		logrus.Warn("You also need to implement the Encoders and Decoders!")
 		logrus.Warn("===============================================================")
 	default:
-		logrus.Warn("This transport type is not yet implemented")
+		return errors.New("this transport type is not yet implemented")
 	}
 	return
 }
@@ -675,11 +675,13 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 	if viper.GetString("gk_folder") != "" {
 		g.pbFilePath = path.Join(viper.GetString("gk_folder"), g.pbFilePath)
 	}
-	cmd := exec.Command("protoc", g.pbFilePath, "--go_out=plugins=grpc:.")
-	cmd.Stdout = os.Stdout
-	err = cmd.Run()
-	if err != nil {
-		return err
+	if !viper.GetBool("gk_testing") {
+		cmd := exec.Command("protoc", g.pbFilePath, "--go_out=plugins=grpc:.")
+		cmd.Stdout = os.Stdout
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
 	}
 	if b, e := g.fs.Exists(g.compileFilePath); e != nil {
 		return e
