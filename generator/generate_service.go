@@ -19,27 +19,28 @@ var SupportedTransports = []string{"http", "grpc"}
 // GenerateService implements Gen and is used to generate the service.
 type GenerateService struct {
 	BaseGenerator
-	pg                       *PartialGenerator
-	name                     string
-	transport                string
-	interfaceName            string
-	serviceStructName        string
-	destPath                 string
-	methods                  []string
-	filePath                 string
-	file                     *parser.File
-	serviceInterface         parser.Interface
-	sMiddleware, eMiddleware bool
+	pg                                   *PartialGenerator
+	name                                 string
+	transport                            string
+	interfaceName                        string
+	serviceStructName                    string
+	destPath                             string
+	methods                              []string
+	filePath                             string
+	file                                 *parser.File
+	serviceInterface                     parser.Interface
+	sMiddleware, gorillaMux, eMiddleware bool
 }
 
 // NewGenerateService returns a initialized and ready generator.
-func NewGenerateService(name, transport string, sMiddleware, eMiddleware bool, methods []string) Gen {
+func NewGenerateService(name, transport string, sMiddleware, gorillaMux, eMiddleware bool, methods []string) Gen {
 	i := &GenerateService{
 		name:          name,
 		interfaceName: utils.ToCamelCase(name + "Service"),
 		destPath:      fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(name)),
 		sMiddleware:   sMiddleware,
 		eMiddleware:   eMiddleware,
+		gorillaMux:    gorillaMux,
 		methods:       methods,
 	}
 	i.filePath = path.Join(i.destPath, viper.GetString("gk_service_file_name"))
@@ -111,7 +112,7 @@ func (g *GenerateService) Generate() (err error) {
 	if err != nil {
 		return err
 	}
-	tp := NewGenerateTransport(g.name, g.transport, g.methods)
+	tp := NewGenerateTransport(g.name, g.gorillaMux, g.transport, g.methods)
 	err = tp.Generate()
 	if err != nil {
 		return err

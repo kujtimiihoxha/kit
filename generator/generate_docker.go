@@ -19,12 +19,13 @@ import (
 type GenerateDocker struct {
 	BaseGenerator
 	dockerCompose *DockerCompose
+	glide         bool
 }
 
 // DockerCompose represents the docker-compose.yml
 type DockerCompose struct {
-	Version  string                    `yaml:"version"`
-	Services map[string]*DockerService `yaml:"services"`
+	Version  string                 `yaml:"version"`
+	Services map[string]interface{} `yaml:"services"`
 }
 
 // BuildService represents one docker service build.
@@ -43,11 +44,13 @@ type DockerService struct {
 }
 
 // NewGenerateDocker returns a new docker generator.
-func NewGenerateDocker() Gen {
-	i := &GenerateDocker{}
+func NewGenerateDocker(glide bool) Gen {
+	i := &GenerateDocker{
+		glide: glide,
+	}
 	i.dockerCompose = &DockerCompose{}
 	i.dockerCompose.Version = "2"
-	i.dockerCompose.Services = map[string]*DockerService{}
+	i.dockerCompose.Services = map[string]interface{}{}
 	i.fs = fs.Get()
 	return i
 }
@@ -131,16 +134,38 @@ RUN mkdir -p %s
 ADD . %s
 
 RUN go get  -t -v ./...
+RUN go get  github.com/canthefason/go-watcher
+RUN go install github.com/canthefason/go-watcher/cmd/watcher
 
-ENTRYPOINT  go install %s/%s/cmd && /go/bin/cmd
+ENTRYPOINT  watcher -run %s/%s/cmd  -watch %s/%s
 `
+	if g.glide {
+		dockerFile = `FROM golang
+
+RUN mkdir -p %s
+
+ADD . %s
+
+RUN curl https://glide.sh/get | sh
+RUN go get  github.com/canthefason/go-watcher
+RUN go install github.com/canthefason/go-watcher/cmd/watcher
+
+RUN cd %s && glide install
+
+ENTRYPOINT  watcher -run %s/%s/cmd -watch %s/%s
+`
+	}
 	fpath := "/go/src/" + pth
 	err = g.addToDockerCompose(name, fpath, httpFilePath, grpcFilePath)
 	if err != nil {
 		return err
 	}
+	if g.glide {
+		dockerFile = fmt.Sprintf(dockerFile, fpath, fpath, fpath, pth, name, pth, name)
 
-	dockerFile = fmt.Sprintf(dockerFile, fpath, fpath, pth, name)
+	} else {
+		dockerFile = fmt.Sprintf(dockerFile, fpath, fpath, pth, name, pth, name)
+	}
 	return g.fs.WriteFile(path.Join(name, "Dockerfile"), dockerFile, true)
 }
 
@@ -159,8 +184,8 @@ func (g *GenerateDocker) addToDockerCompose(name, pth, httpFilePath, grpcFilePat
 	}
 	usedPorts := []string{}
 	for _, v := range g.dockerCompose.Services {
-		for _, p := range v.Ports {
-			pt := strings.Split(p, ":")
+		for _, p := range v.(map[interface{}]interface{})["ports"].([]interface{}) {
+			pt := strings.Split(p.(string), ":")
 			usedPorts = append(usedPorts, pt[0])
 		}
 	}
@@ -170,7 +195,8 @@ func (g *GenerateDocker) addToDockerCompose(name, pth, httpFilePath, grpcFilePat
 				Context:    ".",
 				DockerFile: name + "/Dockerfile",
 			},
-			Restart: "always",
+			Restart:       "always",
+			ContainerName: name,
 			Volumes: []string{
 				".:" + pth,
 			},
@@ -191,7 +217,7 @@ func (g *GenerateDocker) addToDockerCompose(name, pth, httpFilePath, grpcFilePat
 					break
 				}
 			}
-			g.dockerCompose.Services[name].Ports = []string{
+			g.dockerCompose.Services[name].(*DockerService).Ports = []string{
 				fmt.Sprintf("%d", httpExpose) + ":8081",
 			}
 			usedPorts = append(usedPorts, fmt.Sprintf("%d", httpExpose))
@@ -212,11 +238,11 @@ func (g *GenerateDocker) addToDockerCompose(name, pth, httpFilePath, grpcFilePat
 					break
 				}
 			}
-			if g.dockerCompose.Services[name].Ports == nil {
-				g.dockerCompose.Services[name].Ports = []string{}
+			if g.dockerCompose.Services[name].(*DockerService).Ports == nil {
+				g.dockerCompose.Services[name].(*DockerService).Ports = []string{}
 			}
-			g.dockerCompose.Services[name].Ports = append(
-				g.dockerCompose.Services[name].Ports,
+			g.dockerCompose.Services[name].(*DockerService).Ports = append(
+				g.dockerCompose.Services[name].(*DockerService).Ports,
 				fmt.Sprintf("%d", grpcExpose)+":8082",
 			)
 		}

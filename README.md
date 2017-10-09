@@ -7,7 +7,7 @@ This is what `GoKit Cli` is aiming to change.
 
 
 # Prerequisites 
-GoKit Cli needs to ne installed using `go get` and `go install` so `Go` is a requirement to be able to test your services
+GoKit Cli needs to be installed using `go get` and `go install` so `Go` is a requirement to be able to test your services
 [gokit](https://github.com/go-kit/kit) is needed.
 
 # Table of Content
@@ -119,4 +119,5 @@ To start your services just run
 docker-compose up
 ```
 
-If you change something in your code just restart the docker containers using `docker-compose restart`.
+After you run `docker-compose up` your services will start up and eny change you make to your code will automatically
+ rebuild and restart your service (only the service that is changed)
