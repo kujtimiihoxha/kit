@@ -184,10 +184,19 @@ func (g *GenerateDocker) addToDockerCompose(name, pth, httpFilePath, grpcFilePat
 	}
 	usedPorts := []string{}
 	for _, v := range g.dockerCompose.Services {
-		for _, p := range v.(map[interface{}]interface{})["ports"].([]interface{}) {
-			pt := strings.Split(p.(string), ":")
-			usedPorts = append(usedPorts, pt[0])
+		k, ok := v.(map[interface{}]interface{})
+		if ok {
+			for _, p := range k["ports"].([]interface{}) {
+				pt := strings.Split(p.(string), ":")
+				usedPorts = append(usedPorts, pt[0])
+			}
+		} else {
+			for _, p := range v.(*DockerService).Ports {
+				pt := strings.Split(p, ":")
+				usedPorts = append(usedPorts, pt[0])
+			}
 		}
+
 	}
 	if g.dockerCompose.Services[name] == nil {
 		g.dockerCompose.Services[name] = &DockerService{
