@@ -119,5 +119,5 @@ To start your services just run
 docker-compose up
 ```
 
-After you run `docker-compose up` your services will start up and eny change you make to your code will automatically
+After you run `docker-compose up` your services will start up and any change you make to your code will automatically
  rebuild and restart your service (only the service that is changed)
