@@ -1445,6 +1445,25 @@ func (g *generateCmdBase) Generate() (err error) {
 		)
 		g.code.NewLine()
 	}
+	mth := []jen.Code{}
+	for _, v := range g.serviceInterface.Methods {
+		mth = append(mth, jen.Lit(v.Name))
+	}
+	g.code.appendFunction(
+		"addEndpointMiddlewareToAllMethods",
+		nil,
+		[]jen.Code{
+			jen.Id("mw").Map(jen.String()).Index().Qual("github.com/go-kit/kit/endpoint", "Middleware"),
+			jen.Id("m").Qual("github.com/go-kit/kit/endpoint", "Middleware"),
+		},
+		[]jen.Code{},
+		"",
+		jen.Id("methods").Op(":=").Index().String().Values(mth...),
+		jen.For(jen.List(jen.Id("_"), jen.Id("v")).Op(":=").Range().Id("methods")).Block(
+			jen.Id("mw").Index(jen.Id("v")).Op("=").Append(jen.Id("mw").Index(jen.Id("v")), jen.Id("m")),
+		),
+	)
+	g.code.NewLine()
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
 }
 
