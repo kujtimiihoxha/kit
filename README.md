@@ -28,6 +28,8 @@ go get github.com/kujtimiihoxha/kit
 ```bash
 kit help
 ```
+
+Also read this [article](https://medium.com/@kujtimii.h/creating-a-todo-app-using-gokit-cli-20f066a58e1)
 # Create a new service
 ```bash
 kit new service hello
