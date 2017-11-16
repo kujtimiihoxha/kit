@@ -14,10 +14,14 @@ var modelCmd = &cobra.Command{
 	Short:   "Generate model",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			logrus.Error("You must provide a name for the service")
+			logrus.Error("You must provide a name for the model")
 			return
 		}
-		g := generator.NewGenerateModel(args[0], viper.GetString("g_md_service"))
+		if viper.GetString("g_md_service") == "" {
+			logrus.Error("You must provide the service name")
+			return
+		}
+		g := generator.NewGenerateModel(viper.GetString("g_md_service"), args[0])
 		if err := g.Generate(); err != nil {
 			logrus.Error(err)
 		}

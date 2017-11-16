@@ -26,7 +26,7 @@ func NewGenerateModel(name string, model string) Gen {
 		destPath: fmt.Sprintf(viper.GetString("gk_model_path_format"), utils.ToLowerSnakeCase(name)),
 		model:    model,
 	}
-	t.filePath = path.Join(t.destPath, utils.ToLowerFirstCamelCase(model)+".go")
+	t.filePath = path.Join(t.destPath, utils.ToLowerSnakeCase(model)+".go")
 	t.srcFile = jen.NewFilePath(t.destPath)
 	t.InitPg()
 	t.fs = fs.Get()
@@ -45,7 +45,7 @@ func (g *generateModel) Generate() (err error) {
 	}
 	g.code.appendStruct(
 		utils.ToUpperFirst(utils.ToCamelCase(g.model)),
-		jen.Qual("github.com/kujtimiihoxha/shqip-core/db", "BaseModel"),
+		jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/db", "BaseModel"),
 	)
 	g.code.appendStruct(
 		utils.ToUpperFirst(utils.ToCamelCase(g.model)+"Controller"),
@@ -55,7 +55,53 @@ func (g *generateModel) Generate() (err error) {
 	if err != nil {
 		return err
 	}
-	m := utils.ToLowerFirstCamelCase(string(g.model[0]))
+	m := utils.ToLowerFirstCamelCase(g.model)
+	g.code.appendFunction(
+		"New"+utils.ToUpperFirst(utils.ToCamelCase(g.model)+"Controller"),
+		nil,
+		[]jen.Code{
+			jen.Id(m).Id("*").Id(utils.ToCamelCase(g.model)),
+		},
+		[]jen.Code{
+			jen.Id(utils.ToCamelCase(g.model) + "Controller"),
+		},
+		"",
+		jen.Return(
+			jen.Id(utils.ToCamelCase(g.model)+"Controller").Values(
+				jen.Dict{
+					jen.Id(m): jen.Id(m),
+				},
+			),
+		),
+	)
+	g.code.NewLine()
+	g.code.appendFunction(
+		"Get",
+		jen.Id(m).Id("*").Id(utils.ToUpperFirst(utils.ToCamelCase(g.model)+"Controller")),
+		[]jen.Code{
+			jen.Id("list").Id("*").Id("[]" + utils.ToCamelCase(g.model)),
+			jen.Id("limit").Int(),
+			jen.Id("skip").Int(),
+		},
+		[]jen.Code{
+			jen.Error(),
+		},
+		"",
+		jen.Err().Op(":=").Qual(imp, "Session").Call().Dot("Limit").Call(
+			jen.Id("limit"),
+		).Dot("Offset").Call(jen.Id("skip")).Dot("Find").Call(
+			jen.Id("list"),
+		).Dot("Error"),
+		jen.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Return(
+				jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/errors", "NewDBFilterError").Call(
+					jen.Id("err"),
+				),
+			),
+		),
+		jen.Return(jen.Nil()),
+	)
+	g.code.NewLine()
 	g.code.appendFunction(
 		"Insert",
 		jen.Id(m).Id("*").Id(utils.ToUpperFirst(utils.ToCamelCase(g.model)+"Controller")),
@@ -69,7 +115,7 @@ func (g *generateModel) Generate() (err error) {
 		).Dot("Error"),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(
-				jen.Qual("github.com/kujtimiihoxha/shqip-core/errors", "NewDBCreateError").Call(
+				jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/errors", "NewDBCreateError").Call(
 					jen.Id("err"),
 				),
 			),
@@ -93,7 +139,7 @@ func (g *generateModel) Generate() (err error) {
 		).Dot("Error"),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(
-				jen.Qual("github.com/kujtimiihoxha/shqip-core/errors", "NewDBGetByIDError").Call(
+				jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/errors", "NewDBGetByIDError").Call(
 					jen.Id("id"),
 					jen.Id("err"),
 				),
@@ -116,7 +162,7 @@ func (g *generateModel) Generate() (err error) {
 		).Dot("Error"),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(
-				jen.Qual("github.com/kujtimiihoxha/shqip-core/errors", "NewDBUpdateError").Call(
+				jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/errors", "NewDBUpdateError").Call(
 					jen.Id("err"),
 				),
 			),
@@ -137,7 +183,7 @@ func (g *generateModel) Generate() (err error) {
 		).Dot("Error"),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(
-				jen.Qual("github.com/kujtimiihoxha/shqip-core/errors", "NewDBDeleteError").Call(
+				jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/errors", "NewDBDeleteError").Call(
 					jen.Id("err"),
 				),
 			),

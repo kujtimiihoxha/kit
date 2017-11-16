@@ -385,7 +385,7 @@ func (g *generateHTTPTransport) Generate() (err error) {
 			[]jen.Code{},
 			"",
 			jen.Id("e").Op(":=").Qual(
-				"github.com/kujtimiihoxha/shqip-core/io",
+				"github.com/kujtimiihoxha/shqip-for-u/core/io",
 				"BaseResponse",
 			).Values(),
 			jen.Id("e").Dot("Failed").Call(jen.Id("err")),
@@ -409,7 +409,7 @@ func (g *generateHTTPTransport) Generate() (err error) {
 			jen.If(
 				jen.List(jen.Id("h"), jen.Id("k")).Op(":=").Id("response").Id(".").Call(
 					jen.Qual(
-						"github.com/kujtimiihoxha/shqip-core/io",
+						"github.com/kujtimiihoxha/shqip-for-u/core/io",
 						"Failure",
 					),
 				).Op(";").Id("k").Block(
@@ -579,11 +579,11 @@ func (g *generateHTTPTransportBase) Generate() (err error) {
 		[]jen.Code{},
 		"",
 		jen.Id("e").Op(":=").Qual(
-			"github.com/kujtimiihoxha/shqip-core/io",
+			"github.com/kujtimiihoxha/shqip-for-u/core/io",
 			"BaseResponse",
 		).Values(),
 		jen.Id("e").Dot("Failed").Call(
-			jen.Qual("github.com/kujtimiihoxha/shqip-core/errors", "NewNotFoundError").Call(
+			jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/errors", "NewNotFoundError").Call(
 				jen.Id("r.URL.String()"),
 			),
 		),

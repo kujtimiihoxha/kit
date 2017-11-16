@@ -42,7 +42,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
-	"github.com/kujtimiihoxha/shqip-core/config"
+	"github.com/kujtimiihoxha/shqip-for-u/core/config"
 )
 
 var session *gorm.DB

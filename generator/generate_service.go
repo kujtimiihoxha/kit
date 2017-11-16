@@ -692,7 +692,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		reqFields := []jen.Code{}
 		// For the response struct
 		resFields := []jen.Code{
-			jen.Qual("github.com/kujtimiihoxha/shqip-core/io", "BaseResponse"),
+			jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/io", "BaseResponse"),
 		}
 
 		mCallParam := []jen.Code{}
@@ -728,13 +728,10 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			mCallParam = append(mCallParam, jen.Id("req").Dot(utils.ToCamelCase(p.Name)))
 
 		}
-		methodHasError := false
-		errName := ""
+
 		en := ""
 		for _, p := range m.Results {
 			if p.Type == "error" {
-				methodHasError = true
-				errName = utils.ToCamelCase(p.Name)
 				en = p.Name
 				retList = append(retList, jen.Id(p.Name))
 				continue
@@ -763,10 +760,10 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			retList = append(retList, jen.Id(p.Name))
 		}
 		respParam[jen.Id("BaseResponse")] = jen.Qual(
-			"github.com/kujtimiihoxha/shqip-core/io",
+			"github.com/kujtimiihoxha/shqip-for-u/core/io",
 			"BaseResponse",
 		).Values(jen.Dict{
-			jen.Line().Id("WithErr"): jen.Qual("github.com/kujtimiihoxha/shqip-core/io", "WithErr").Values(
+			jen.Line().Id("WithErr"): jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/io", "WithErr").Values(
 				jen.Dict{
 					jen.Line().Id("Err"): jen.Id(en).Id(",").Line(),
 				},
@@ -791,7 +788,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			if v.Name == "Make"+m.Name+"Endpoint" {
 				makeMethdExists = true
 			}
-			if v.Name == "GetError" && v.Struct.Type == m.Name+"Response" {
+			if v.Name == "GetErr" && v.Struct.Type == m.Name+"Response" {
 				failedFound = true
 			}
 			if failedFound && makeMethdExists {
@@ -823,7 +820,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 					jen.Id(m.Name + "Request"),
 				),
 				jen.List(retList...).Op(":=").Id("s").Dot(m.Name).Call(mCallParam...),
-				jen.Return(jen.Id(m.Name+"Response").Values(respParam), jen.Nil()),
+				jen.Return(jen.Id("&"+m.Name+"Response").Values(respParam), jen.Nil()),
 			}
 			if len(mCallParam) == 1 {
 				bd = bd[1:]
@@ -855,18 +852,6 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 				},
 				"",
 				jen.Return(pt.Raw()),
-			)
-			g.code.NewLine()
-		}
-		if !failedFound && methodHasError {
-			g.code.Raw().Comment("Failed implements Failer.").Line()
-			g.code.appendFunction(
-				"GetError",
-				jen.Id("r").Id(m.Name+"Response"),
-				[]jen.Code{},
-				[]jen.Code{},
-				"error",
-				jen.Return(jen.Id("r").Dot(errName)),
 			)
 			g.code.NewLine()
 		}
