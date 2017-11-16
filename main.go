@@ -40,6 +40,8 @@ func setDefaults() {
 	viper.SetDefault("gk_client_cmd_path_format", path.Join("%s", "cmd", "client"))
 	viper.SetDefault("gk_grpc_path_format", path.Join("%s", "pkg", "grpc"))
 	viper.SetDefault("gk_grpc_pb_path_format", path.Join("%s", "pkg", "grpc", "pb"))
+	viper.SetDefault("gk_db_path_format", path.Join("%s", "pkg", "db"))
+	viper.SetDefault("gk_model_path_format", path.Join("%s", "pkg", "db", "model"))
 
 	viper.SetDefault("gk_service_file_name", "service.go")
 	viper.SetDefault("gk_service_middleware_file_name", "middleware.go")
@@ -55,6 +57,8 @@ func setDefaults() {
 	viper.SetDefault("gk_grpc_pb_file_name", "%s.proto")
 	viper.SetDefault("gk_grpc_base_file_name", "handler_gen.go")
 	viper.SetDefault("gk_grpc_file_name", "handler.go")
+	viper.SetDefault("gk_db_file_name", "db.go")
+
 	if runtime.GOOS == "windows" {
 		viper.SetDefault("gk_grpc_compile_file_name", "compile.bat")
 	} else {

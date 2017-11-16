@@ -230,34 +230,18 @@ func (g *generateHTTPTransport) Generate() (err error) {
 	if err != nil {
 		return err
 	}
-	hasError := false
-	errorEncoderFound := false
-	err2codeFound := false
-	errorDecoderFound := false
-	errorWrapperFound := false
-	for _, m := range g.file.Structures {
-		if m.Name == "errorWrapper" {
-			errorWrapperFound = true
-		}
-	}
+	encodeError := false
+	handleError := false
 	for _, m := range g.serviceInterface.Methods {
-		for _, v := range m.Results {
-			if v.Type == "error" {
-				hasError = true
-			}
-		}
 		decoderFound := false
 		encoderFound := false
 		handlerFound := false
 		for _, v := range g.file.Methods {
 			if v.Name == "ErrorEncoder" {
-				errorEncoderFound = true
+				encodeError = true
 			}
-			if v.Name == "err2code" {
-				err2codeFound = true
-			}
-			if v.Name == "ErrorDecoder" {
-				errorDecoderFound = true
+			if v.Name == "handleError" {
+				handleError = true
 			}
 			if v.Name == fmt.Sprintf("decode%sRequest", m.Name) {
 				decoderFound = true
@@ -277,25 +261,26 @@ func (g *generateHTTPTransport) Generate() (err error) {
 			var st *jen.Statement
 			if g.gorillaMux {
 				st = jen.Id("m").Dot("Methods").Call(
-					jen.Lit("POST"),
+					jen.Lit("GET"),
 				).Dot("Path").Call(
 					jen.Lit("/" + strings.Replace(utils.ToLowerSnakeCase(m.Name), "_", "-", -1)),
 				).Dot("Handler").Call(
-					jen.Qual("github.com/gorilla/handlers", "CORS").Call(
-						jen.Qual("github.com/gorilla/handlers", "AllowedMethods").Call(
-							jen.Index().String().Values(jen.Lit("POST")),
+					jen.Line().Qual("github.com/gorilla/handlers", "CORS").Call(
+						jen.Line().Qual("github.com/gorilla/handlers", "AllowedMethods").Call(
+							jen.Index().String().Values(jen.Lit("GET")),
 						),
-						jen.Qual("github.com/gorilla/handlers", "AllowedOrigins").Call(
+						jen.Line().Qual("github.com/gorilla/handlers", "AllowedOrigins").Call(
 							jen.Index().String().Values(jen.Lit("*")),
 						),
+						jen.Line(),
 					).Call(
-						jen.Qual("github.com/go-kit/kit/transport/http", "NewServer").Call(
-							jen.Id(fmt.Sprintf("endpoints.%sEndpoint", m.Name)),
-							jen.Id(fmt.Sprintf("decode%sRequest", m.Name)),
-							jen.Id(fmt.Sprintf("encode%sResponse", m.Name)),
-							jen.Id("options..."),
-						),
-					),
+						jen.Line().Qual("github.com/go-kit/kit/transport/http", "NewServer").Call(
+							jen.Line().Id(fmt.Sprintf("endpoints.%sEndpoint", m.Name)),
+							jen.Line().Id(fmt.Sprintf("decode%sRequest", m.Name)),
+							jen.Line().Id(fmt.Sprintf("encode%sResponse", m.Name)),
+							jen.Line().Id("options...").Id(",").Line(),
+						).Id(",").Line(),
+					).Id(",").Line(),
 				)
 			} else {
 				st = jen.Id("m").Dot("Handle").Call(
@@ -332,7 +317,6 @@ func (g *generateHTTPTransport) Generate() (err error) {
 			g.code.NewLine()
 
 		}
-
 		if !decoderFound {
 			g.code.appendMultilineComment([]string{
 				fmt.Sprintf("decode%sResponse  is a transport/http.DecodeRequestFunc that decodes a", m.Name),
@@ -352,10 +336,7 @@ func (g *generateHTTPTransport) Generate() (err error) {
 				},
 				"",
 				jen.Id("req").Op(":=").Qual(endpImports, m.Name+"Request").Block(),
-				jen.Err().Op(":=").Qual("encoding/json", "NewDecoder").Call(
-					jen.Id("r").Dot("Body"),
-				).Dot("Decode").Call(jen.Id("&req")),
-				jen.Return(jen.Id("req"), jen.Id("err")),
+				jen.Return(jen.Id("req"), jen.Id("nil")),
 			)
 			g.code.NewLine()
 		}
@@ -365,36 +346,6 @@ func (g *generateHTTPTransport) Generate() (err error) {
 				"the response as JSON to the response writer",
 			})
 			g.code.NewLine()
-			pt := []jen.Code{}
-			if hasError {
-				pt = append(
-					pt,
-					jen.If(
-						jen.List(jen.Id("f"), jen.Id("ok")).Op(":=").Id("response.").Call(
-							jen.Qual(
-								endpImports,
-								"Failure",
-							),
-						).Id(";").Id("ok").Id("&&").Id("f").Dot("Failed").Call().Op("!=").Nil(),
-					).Block(
-						jen.Id("ErrorEncoder").Call(
-							jen.Id("ctx"),
-							jen.Id("f").Dot("Failed").Call(),
-							jen.Id("w"),
-						),
-						jen.Return(jen.Nil()),
-					),
-				)
-			}
-			pt = append(
-				pt,
-				jen.Id("w").Dot("Header").Call().Dot("Set").Call(
-					jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
-				jen.Err().Op("=").Qual("encoding/json", "NewEncoder").Call(
-					jen.Id("w"),
-				).Dot("Encode").Call(jen.Id("response")),
-				jen.Return(),
-			)
 			g.code.appendFunction(
 				fmt.Sprintf("encode%sResponse", m.Name),
 				nil,
@@ -407,86 +358,68 @@ func (g *generateHTTPTransport) Generate() (err error) {
 					jen.Id("err").Error(),
 				},
 				"",
-				pt...,
+				jen.Id("handleError").Call(jen.Id("response")),
+				jen.Id("w").Dot("Header").Call().Dot("Set").Call(
+					jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
+				jen.Err().Op("=").Qual("encoding/json", "NewEncoder").Call(
+					jen.Id("w"),
+				).Dot("Encode").Call(jen.Id("response")),
+				jen.Return(),
 			)
 			g.code.NewLine()
 		}
 	}
-	if hasError {
-		if !errorEncoderFound {
-			g.code.appendFunction(
-				"ErrorEncoder",
-				nil,
-				[]jen.Code{
-					jen.Id("_").Qual("context", "Context"),
-					jen.Id("err").Id("error"),
-					jen.Id("w").Qual("net/http", "ResponseWriter"),
-				},
-				[]jen.Code{},
-				"",
-				jen.Id("w").Dot("WriteHeader").Call(jen.Id("err2code").Call(jen.Err())),
-				jen.Qual("encoding/json", "NewEncoder").Call(jen.Id("w")).Dot("Encode").Call(
-					jen.Id("errorWrapper").Values(
-						jen.Dict{
-							jen.Id("Error"): jen.Err().Dot("Error").Call(),
-						},
+	if !encodeError {
+		g.code.appendMultilineComment([]string{
+			"ErrorEncoder encodes error to a specific format",
+		})
+		g.code.NewLine()
+		g.code.appendFunction(
+			"ErrorEncoder",
+			nil,
+			[]jen.Code{
+				jen.Id("_").Qual("context", "Context"),
+				jen.Id("err").Id("error"),
+				jen.Id("w").Qual("net/http", "ResponseWriter"),
+			},
+			[]jen.Code{},
+			"",
+			jen.Id("e").Op(":=").Qual(
+				"github.com/kujtimiihoxha/shqip-core/io",
+				"BaseResponse",
+			).Values(),
+			jen.Id("e").Dot("Failed").Call(jen.Id("err")),
+			jen.Id("w").Dot("Header").Call().Dot("Set").Call(
+				jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
+			jen.Qual("encoding/json", "NewEncoder").Call(
+				jen.Id("w"),
+			).Dot("Encode").Call(jen.Id("e")),
+		)
+		g.code.NewLine()
+	}
+	if !handleError {
+		g.code.appendFunction(
+			"handleError",
+			nil,
+			[]jen.Code{
+				jen.Id("response").Interface(),
+			},
+			[]jen.Code{},
+			"",
+			jen.If(
+				jen.List(jen.Id("h"), jen.Id("k")).Op(":=").Id("response").Id(".").Call(
+					jen.Qual(
+						"github.com/kujtimiihoxha/shqip-core/io",
+						"Failure",
+					),
+				).Op(";").Id("k").Block(
+					jen.Id("h").Dot("Failed").Call(
+						jen.Id("h").Dot("GetErr").Call(),
 					),
 				),
-			)
-			g.code.NewLine()
-		}
-		if !errorDecoderFound {
-			g.code.appendFunction(
-				"ErrorDecoder",
-				nil,
-				[]jen.Code{
-					jen.Id("r").Id("*").Qual("net/http", "Response"),
-				},
-				[]jen.Code{},
-				"error",
-				jen.Var().Id("w").Id("errorWrapper"),
-				jen.If(
-					jen.Err().Op(":=").Qual("encoding/json", "NewDecoder").Call(
-						jen.Id("r").Dot("Body"),
-					).Dot("Decode").Call(jen.Id("&w")).Id(";").Err().Op("!=").Nil(),
-				).Block(
-					jen.Return(jen.Err()),
-				),
-				jen.Return(jen.Qual("errors", "New").Call(jen.Id("w").Dot("Error"))),
-			)
-			g.code.NewLine()
-
-		}
-		if !err2codeFound {
-			g.code.appendMultilineComment(
-				[]string{
-					"This is used to set the http status, see an example here :",
-					"https://github.com/go-kit/kit/blob/master/examples/addsvc/pkg/addtransport/http.go#L133",
-				},
-			)
-			g.code.NewLine()
-			g.code.appendFunction(
-				"err2code",
-				nil,
-				[]jen.Code{
-					jen.Err().Error(),
-				},
-				[]jen.Code{},
-				"int",
-				jen.Return(jen.Qual("net/http", "StatusInternalServerError")),
-			)
-			g.code.NewLine()
-		}
-		if !errorWrapperFound {
-			g.code.Raw().Type().Id("errorWrapper").Struct(
-				jen.Id("Error").String().Tag(
-					map[string]string{
-						"json": "error",
-					},
-				),
-			)
-			g.code.NewLine()
-		}
+			),
+		)
+		g.code.NewLine()
 	}
 	if g.generateFirstTime {
 		return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
@@ -611,6 +544,12 @@ func (g *generateHTTPTransportBase) Generate() (err error) {
 		body = append([]jen.Code{
 			jen.Id("m").Op(":=").Qual("net/http", "NewServeMux").Call()}, handles...)
 	}
+	body = append(
+		body,
+		jen.Id("m").Dot("NotFoundHandler").Op("=").Qual("net/http", "HandlerFunc").Call(
+			jen.Id("encodeNotFound"),
+		),
+	)
 	body = append(body, jen.Return(jen.Id("m")))
 	g.code.appendFunction(
 		"NewHTTPHandler",
@@ -624,6 +563,35 @@ func (g *generateHTTPTransportBase) Generate() (err error) {
 		},
 		"",
 		body...,
+	)
+	g.code.NewLine()
+	g.code.appendMultilineComment([]string{
+		"ErrorEncoder encodes error to a specific format",
+	})
+	g.code.NewLine()
+	g.code.appendFunction(
+		"encodeNotFound",
+		nil,
+		[]jen.Code{
+			jen.Id("w").Qual("net/http", "ResponseWriter"),
+			jen.Id("r").Id("*").Qual("net/http", "Request"),
+		},
+		[]jen.Code{},
+		"",
+		jen.Id("e").Op(":=").Qual(
+			"github.com/kujtimiihoxha/shqip-core/io",
+			"BaseResponse",
+		).Values(),
+		jen.Id("e").Dot("Failed").Call(
+			jen.Qual("github.com/kujtimiihoxha/shqip-core/errors", "NewNotFoundError").Call(
+				jen.Id("r.URL.String()"),
+			),
+		),
+		jen.Id("w").Dot("Header").Call().Dot("Set").Call(
+			jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
+		jen.Qual("encoding/json", "NewEncoder").Call(
+			jen.Id("w"),
+		).Dot("Encode").Call(jen.Id("e")),
 	)
 	g.code.NewLine()
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)

@@ -172,6 +172,25 @@ func GetHTTPTransportImportPath(name string) (string, error) {
 	httpImports := projectPath + "/" + epPath
 	return httpImports, nil
 }
+// GetHTTPTransportImportPath returns the import path of the service http transport.
+func GetDBImportPath(name string) (string, error) {
+	gosrc := GetGOPATH() + "/src/"
+	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if viper.GetString("gk_folder") != "" {
+		pwd += "/" + viper.GetString("gk_folder")
+	}
+	pwd = strings.Replace(pwd, "\\", "/", -1)
+	projectPath := strings.Replace(pwd, gosrc, "", 1)
+	epPath := fmt.Sprintf(viper.GetString("gk_db_path_format"), ToLowerSnakeCase(name))
+
+	epPath = strings.Replace(epPath, "\\", "/", -1)
+	httpImports := projectPath + "/" + epPath
+	return httpImports, nil
+}
 
 // GetDockerFileProjectPath returns the path of the project.
 func GetDockerFileProjectPath() (string, error) {

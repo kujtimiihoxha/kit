@@ -687,12 +687,13 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 	if err != nil {
 		return err
 	}
-	errTypeFound := false
 	for _, m := range g.serviceInterface.Methods {
 		// For the request struct
 		reqFields := []jen.Code{}
 		// For the response struct
-		resFields := []jen.Code{}
+		resFields := []jen.Code{
+			jen.Qual("github.com/kujtimiihoxha/shqip-core/io", "BaseResponse"),
+		}
 
 		mCallParam := []jen.Code{}
 		respParam := jen.Dict{}
@@ -729,11 +730,14 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		}
 		methodHasError := false
 		errName := ""
+		en := ""
 		for _, p := range m.Results {
 			if p.Type == "error" {
-				errTypeFound = true
 				methodHasError = true
 				errName = utils.ToCamelCase(p.Name)
+				en = p.Name
+				retList = append(retList, jen.Id(p.Name))
+				continue
 			}
 			tp := p.Type
 			ts := strings.Split(tp, ".")
@@ -748,16 +752,26 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			if pth != "" {
 				s := strings.Split(p.Type, ".")
 				resFields = append(resFields, jen.Id(utils.ToCamelCase(p.Name)).Qual(pth, s[1]).Tag(map[string]string{
-					"json": utils.ToLowerSnakeCase(p.Name),
+					"json": utils.ToLowerSnakeCase(p.Name) + ",omitempty",
 				}))
 			} else {
 				resFields = append(resFields, jen.Id(utils.ToCamelCase(p.Name)).Id(tp).Tag(map[string]string{
-					"json": utils.ToLowerSnakeCase(p.Name),
+					"json": utils.ToLowerSnakeCase(p.Name) + ",omitempty",
 				}))
 			}
 			respParam[jen.Id(utils.ToCamelCase(p.Name))] = jen.Id(p.Name)
 			retList = append(retList, jen.Id(p.Name))
 		}
+		respParam[jen.Id("BaseResponse")] = jen.Qual(
+			"github.com/kujtimiihoxha/shqip-core/io",
+			"BaseResponse",
+		).Values(jen.Dict{
+			jen.Line().Id("WithErr"): jen.Qual("github.com/kujtimiihoxha/shqip-core/io", "WithErr").Values(
+				jen.Dict{
+					jen.Line().Id("Err"): jen.Id(en).Id(",").Line(),
+				},
+			).Id(",").Line(),
+		})
 		requestStructExists := false
 		responseStructExists := false
 		makeMethdExists := false
@@ -777,7 +791,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			if v.Name == "Make"+m.Name+"Endpoint" {
 				makeMethdExists = true
 			}
-			if v.Name == "Failed" && v.Struct.Type == m.Name+"Response" {
+			if v.Name == "GetError" && v.Struct.Type == m.Name+"Response" {
 				failedFound = true
 			}
 			if failedFound && makeMethdExists {
@@ -847,35 +861,12 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		if !failedFound && methodHasError {
 			g.code.Raw().Comment("Failed implements Failer.").Line()
 			g.code.appendFunction(
-				"Failed",
+				"GetError",
 				jen.Id("r").Id(m.Name+"Response"),
 				[]jen.Code{},
 				[]jen.Code{},
 				"error",
 				jen.Return(jen.Id("r").Dot(errName)),
-			)
-			g.code.NewLine()
-		}
-	}
-	if errTypeFound {
-		failureFound := false
-		for _, v := range g.file.Interfaces {
-			if v.Name == "Failure" {
-				failureFound = true
-			}
-		}
-		if !failureFound {
-			g.code.appendMultilineComment(
-				[]string{
-					"Failer is an interface that should be implemented by response types.",
-					"Response encoders can check if responses are Failer, and if so they've",
-					"failed, and if so encode them using a separate write path based on the error.",
-				},
-			)
-			g.code.NewLine()
-
-			g.code.Raw().Type().Id("Failure").Interface(
-				jen.Id("Failed").Params().Error(),
 			)
 			g.code.NewLine()
 		}

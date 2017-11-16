@@ -47,8 +47,8 @@ var initserviceCmd = &cobra.Command{
 func init() {
 	generateCmd.AddCommand(initserviceCmd)
 	initserviceCmd.Flags().StringP("transport", "t", "http", "The transport you want your service to be initiated with")
-	initserviceCmd.Flags().BoolP("dmw","w", false, "Generate default middleware for service and endpoint")
-	initserviceCmd.Flags().Bool("gorilla", false, "Generate http using gorilla mux")
+	initserviceCmd.Flags().BoolP("dmw", "w", true, "Generate default middleware for service and endpoint")
+	initserviceCmd.Flags().Bool("gorilla", true, "Generate http using gorilla mux")
 	initserviceCmd.Flags().StringArrayVarP(&methods, "methods", "m", []string{}, "Specify methods to be generated")
 	initserviceCmd.Flags().Bool("svc-mdw", false, "If set a default Logging and Instrumental middleware will be created and attached to the service")
 	initserviceCmd.Flags().Bool("endpoint-mdw", false, "If set a default Logging and Tracking middleware will be created and attached to the endpoint")
