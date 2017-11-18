@@ -358,9 +358,9 @@ func (g *generateHTTPTransport) Generate() (err error) {
 					jen.Id("err").Error(),
 				},
 				"",
-				jen.Id("handleError").Call(jen.Id("response")),
 				jen.Id("w").Dot("Header").Call().Dot("Set").Call(
 					jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
+				jen.Id("w.WriteHeader(handleError(response))"),
 				jen.Err().Op("=").Qual("encoding/json", "NewEncoder").Call(
 					jen.Id("w"),
 				).Dot("Encode").Call(jen.Id("response")),
@@ -391,6 +391,7 @@ func (g *generateHTTPTransport) Generate() (err error) {
 			jen.Id("e").Dot("Failed").Call(jen.Id("err")),
 			jen.Id("w").Dot("Header").Call().Dot("Set").Call(
 				jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
+			jen.Id("w.WriteHeader(e.GetStatus())"),
 			jen.Qual("encoding/json", "NewEncoder").Call(
 				jen.Id("w"),
 			).Dot("Encode").Call(jen.Id("e")),
@@ -404,7 +405,9 @@ func (g *generateHTTPTransport) Generate() (err error) {
 			[]jen.Code{
 				jen.Id("response").Interface(),
 			},
-			[]jen.Code{},
+			[]jen.Code{
+				jen.Int(),
+			},
 			"",
 			jen.If(
 				jen.List(jen.Id("h"), jen.Id("k")).Op(":=").Id("response").Id(".").Call(
@@ -416,8 +419,10 @@ func (g *generateHTTPTransport) Generate() (err error) {
 					jen.Id("h").Dot("Failed").Call(
 						jen.Id("h").Dot("GetErr").Call(),
 					),
+					jen.Return(jen.Id("h").Dot("GetStatus").Call()),
 				),
 			),
+			jen.Return(jen.Lit(200)),
 		)
 		g.code.NewLine()
 	}
@@ -589,6 +594,7 @@ func (g *generateHTTPTransportBase) Generate() (err error) {
 		),
 		jen.Id("w").Dot("Header").Call().Dot("Set").Call(
 			jen.Lit("Content-Type"), jen.Lit("application/json; charset=utf-8")),
+		jen.Id("w.WriteHeader(e.GetStatus())"),
 		jen.Qual("encoding/json", "NewEncoder").Call(
 			jen.Id("w"),
 		).Dot("Encode").Call(jen.Id("e")),

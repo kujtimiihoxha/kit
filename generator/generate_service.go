@@ -1431,13 +1431,47 @@ func (g *generateCmdBase) Generate() (err error) {
 		[]jen.Code{
 			jen.Id("mw").Map(jen.String()).Index().Qual("github.com/go-kit/kit/endpoint", "Middleware"),
 			jen.Id("m").Qual("github.com/go-kit/kit/endpoint", "Middleware"),
+			jen.Id("ignore").Id("...").String(),
 		},
 		[]jen.Code{},
 		"",
 		jen.Id("methods").Op(":=").Index().String().Values(mth...),
 		jen.For(jen.List(jen.Id("_"), jen.Id("v")).Op(":=").Range().Id("methods")).Block(
+			jen.Id("found").Op(":=").Id("false"),
+			jen.For(jen.List(jen.Id("_"), jen.Id("i")).Op(":=").Range().Id("ignore")).Block(
+				jen.If(jen.Id("i").Op("==").Id("v")).Block(
+					jen.Id("found").Op("=").Id("true"),
+				),
+			),
+			jen.If(jen.Id("found")).Block(jen.Continue()),
 			jen.Id("mw").Index(jen.Id("v")).Op("=").Append(jen.Id("mw").Index(jen.Id("v")), jen.Id("m")),
 		),
+	)
+	g.code.NewLine()
+	g.code.appendFunction(
+		"addOptionToAllMethods",
+		nil,
+		[]jen.Code{
+			jen.Id("option").Qual("github.com/go-kit/kit/transport/http", "ServerOption"),
+			jen.Id("options").Map(jen.Id("string")).Index().Qual("github.com/go-kit/kit/transport/http", "ServerOption"),
+			jen.Id("ignore").Id("...").String(),
+		},
+		[]jen.Code{
+			jen.Map(jen.Id("string")).Index().Qual("github.com/go-kit/kit/transport/http", "ServerOption"),
+		},
+		"",
+		jen.Id("methods").Op(":=").Index().String().Values(mth...),
+		jen.For(jen.List(jen.Id("_"), jen.Id("v")).Op(":=").Range().Id("methods")).Block(
+			jen.Id("found").Op(":=").Id("false"),
+			jen.For(jen.List(jen.Id("_"), jen.Id("i")).Op(":=").Range().Id("ignore")).Block(
+				jen.If(jen.Id("i").Op("==").Id("v")).Block(
+					jen.Id("found").Op("=").Id("true"),
+				),
+			),
+			jen.If(jen.Id("found")).Block(jen.Continue()),
+			jen.Id("options").Index(jen.Id("v")).Op("=").Append(jen.Id("options").Index(jen.Id("v")), jen.Id("option")),
+		),
+		jen.Return(jen.Id("options")),
 	)
 	g.code.NewLine()
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), true)
