@@ -66,7 +66,12 @@ func connectionString() string {
 
 func Close() error {
 	if session != nil {
-		return session.Close()
+		err := session.Close()
+		if err != nil {
+			session = nil
+			return err
+		}
+		session = nil
 	}
 	return nil
 }
