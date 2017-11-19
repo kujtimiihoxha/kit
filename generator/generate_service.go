@@ -604,7 +604,7 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
-				if tp[:1] == strings.ToUpper(tp[:1]) {
+				if tp[:1] == strings.ToUpper(tp[:1]) && tp[0] != '[' && tp[0] != '*' {
 					// If the type of the parameter is not `something.MyType` and it starts with an uppercase
 					// than the type was defined inside the service package.
 					tp = "service." + tp
@@ -637,7 +637,7 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
-				if tp[:1] == strings.ToUpper(tp[:1]) {
+				if tp[:1] == strings.ToUpper(tp[:1]) && tp[0] != '['  &&  tp[0] != '*'  {
 					// If the type of the parameter is not `something.MyType` and it starts with an uppercase
 					// than the type was defined inside the service package.
 					tp = "service." + tp
@@ -707,7 +707,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
-				if tp[:1] == strings.ToUpper(tp[:1]) {
+				if tp[:1] == strings.ToUpper(tp[:1]) && tp[0] != '['  &&  tp[0] != '*' {
 					// If the type of the parameter is not `something.MyType` and it starts with an uppercase
 					// than the type was defined inside the service package.
 					tp = "service." + tp
@@ -738,7 +738,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
-				if tp[:1] == strings.ToUpper(tp[:1]) {
+				if tp[:1] == strings.ToUpper(tp[:1]) && tp[0] != '[' && tp[0] != '*' {
 					// If the type of the parameter is not `something.MyType` and it starts with an uppercase
 					// than the type was defined inside the service package.
 					tp = "service." + tp
