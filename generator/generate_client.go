@@ -185,16 +185,31 @@ func (g *generateHTTPClient) Generate() (err error) {
 					"github.com/go-kit/kit/transport/http",
 					"NewClient",
 				).Call(
-					jen.Lit("POST"),
-					jen.Id("copyURL").Call(
+					jen.Line().Lit("GET"),
+					jen.Line().Id("copyURL").Call(
 						jen.Id("u"), jen.Lit(
 							"/"+strings.Replace(utils.ToLowerSnakeCase(m.Name), "_", "-", -1),
 						),
 					),
-					jen.Id("encodeHTTPGenericRequest"),
-					jen.Id(fmt.Sprintf("decode%sResponse", m.Name)),
-					jen.Id(fmt.Sprintf("options[\"%s\"]...", m.Name)),
+					jen.Line().Id("encodeHTTPGenericRequest"),
+					jen.Line().Id(fmt.Sprintf("decode%sResponse", m.Name)),
+					jen.Line().Qual("github.com/go-kit/kit/transport/http", "ClientBefore").Call(
+						jen.Qual("github.com/go-kit/kit/auth/jwt", "ContextToHTTP").Call(),
+					).Id(",").Line(),
 				).Dot("Endpoint").Call(),
+				jen.Id(utils.ToLowerFirstCamelCase(m.Name)+"Endpoint").Op("=").Qual(
+					"github.com/go-kit/kit/auth/jwt",
+					"NewSigner",
+				).Call(
+					jen.Line().String().Call(
+						jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/auth", "SERVICE_KEY"),
+					),
+					jen.Line().Index().Byte().Call(
+						jen.Qual("github.com/kujtimiihoxha/shqip-for-u/core/auth", "SERVICE_SECRET"),
+					),
+					jen.Line().Qual("github.com/kujtimiihoxha/shqip-for-u/core/auth", "TOKEN_SIGNING_METHOD"),
+					jen.Line().Id("claims").Id(",").Line(),
+				).Call(jen.Id(utils.ToLowerFirstCamelCase(m.Name)+"Endpoint")),
 			).Line(),
 		)
 	}
@@ -214,6 +229,11 @@ func (g *generateHTTPClient) Generate() (err error) {
 		jen.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(jen.Nil(), jen.Err()),
 		),
+		jen.Id("claims").Op(":=").Qual(
+			"github.com/go-kit/kit/auth/jwt",
+			"MapClaimsFactory",
+		).Call().Dot("").Call(jen.Qual("github.com/dgrijalva/jwt-go", "MapClaims")),
+		jen.Id("claims").Index(jen.Lit("service")).Op("=").Id("service"),
 	},
 		handles...,
 	)
@@ -231,7 +251,7 @@ func (g *generateHTTPClient) Generate() (err error) {
 		nil,
 		[]jen.Code{
 			jen.Id("instance").String(),
-			jen.Id("options").Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/http", "ClientOption"),
+			jen.Id("service").String(),
 		},
 		[]jen.Code{
 			jen.Qual(serviceImport, g.serviceInterface.Name),
@@ -264,10 +284,6 @@ func (g *generateHTTPClient) Generate() (err error) {
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), false)
 }
 func (g *generateHTTPClient) generateDecodeEncodeMethods(endpointImport string) (err error) {
-	httpImport, err := utils.GetHTTPTransportImportPath(g.name)
-	if err != nil {
-		return err
-	}
 	g.code.NewLine()
 	g.code.appendMultilineComment([]string{
 		"EncodeHTTPGenericRequest is a transport/http.EncodeRequestFunc that",
@@ -318,19 +334,38 @@ func (g *generateHTTPClient) generateDecodeEncodeMethods(endpointImport string) 
 				jen.Error(),
 			},
 			"",
-			jen.If(
-				jen.Id("r").Dot("StatusCode").Op("!=").Qual("net/http", "StatusOK"),
-			).Block(
-				jen.Return(jen.Nil(), jen.Qual(httpImport, "ErrorDecoder").Call(jen.Id("r"))),
-			),
 			jen.Var().Id("resp").Qual(endpointImport, m.Name+"Response"),
 			jen.Err().Op(":=").Qual("encoding/json", "NewDecoder").Call(
 				jen.Id("r").Dot("Body"),
 			).Dot("Decode").Call(jen.Id("&resp")),
+			jen.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Return(
+					jen.List(
+						jen.Nil(), jen.Qual(
+							"github.com/kujtimiihoxha/shqip-for-u/core/errors",
+							"DecodingRequest",
+						).Call(jen.Err()),
+					),
+				),
+			),
+			jen.Id("err").Op("=").Id("checkErrorResponse").Call(jen.Id("&").Id("resp")),
 			jen.Return(jen.Id("resp"), jen.Err()),
 		)
 		g.code.NewLine()
 	}
+	g.code.appendFunction(
+		"checkErrorResponse",
+		nil,
+		[]jen.Code{
+			jen.Id("failure").Qual("github.com/kujtimiihoxha/shqip-for-u/core/io", "Failure"),
+		},
+		[]jen.Code{
+			jen.Error(),
+		},
+		"",
+		jen.Return(jen.Id("failure").Dot("GetServiceError").Call()),
+	)
+	g.code.NewLine()
 	return
 }
 
