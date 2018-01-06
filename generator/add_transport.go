@@ -22,6 +22,7 @@ import (
 	"github.com/kujtimiihoxha/kit/parser"
 	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/spf13/viper"
+	"github.com/emicklei/proto-contrib/pkg/protofmt"
 )
 
 // GenerateTransport implement Gen, is used to generate a service transport
@@ -682,7 +683,7 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 	}
 	g.generateRequestResponse()
 	buf := new(bytes.Buffer)
-	formatter := proto.NewFormatter(buf, " ")
+	formatter := protofmt.NewFormatter(buf, " ")
 	formatter.Format(g.protoSrc)
 	err = g.fs.WriteFile(g.pbFilePath, buf.String(), true)
 	if err != nil {
