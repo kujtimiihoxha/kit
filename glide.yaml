@@ -22,3 +22,4 @@ import:
   - imports
 - package: github.com/emicklei/proto
 - package: github.com/go-yaml/yaml
+- package: github.com/emicklei/proto-contrib
