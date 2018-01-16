@@ -637,7 +637,7 @@ func (g *generateServiceEndpoints) generateEndpointsClientMethods() {
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
-				if tp[:1] == strings.ToUpper(tp[:1]) && tp[0] != '['  &&  tp[0] != '*'  {
+				if tp[:1] == strings.ToUpper(tp[:1]) && tp[0] != '[' && tp[0] != '*' {
 					// If the type of the parameter is not `something.MyType` and it starts with an uppercase
 					// than the type was defined inside the service package.
 					tp = "service." + tp
@@ -707,7 +707,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 			tp := p.Type
 			ts := strings.Split(tp, ".")
 			if len(ts) == 1 {
-				if tp[:1] == strings.ToUpper(tp[:1]) && tp[0] != '['  &&  tp[0] != '*' {
+				if tp[:1] == strings.ToUpper(tp[:1]) && tp[0] != '[' && tp[0] != '*' {
 					// If the type of the parameter is not `something.MyType` and it starts with an uppercase
 					// than the type was defined inside the service package.
 					tp = "service." + tp
@@ -720,7 +720,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 					"json": utils.ToLowerSnakeCase(utils.ToCamelCase(p.Name)),
 				}))
 			} else {
-				reqFields = append(reqFields, jen.Id(utils.ToCamelCase(p.Name)).Id(tp).Tag(map[string]string{
+				reqFields = append(reqFields, jen.Id(utils.ToCamelCase(p.Name)).Id(strings.Replace(tp, "...", "[]", 1)).Tag(map[string]string{
 					"json": utils.ToLowerSnakeCase(p.Name),
 				}))
 			}

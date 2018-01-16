@@ -230,6 +230,9 @@ func (fp *FileParser) getTypeFromExp(e ast.Expr) string {
 		tp = "map[" + key + "]" + value
 	case *ast.InterfaceType:
 		tp = "interface{}"
+	case *ast.Ellipsis:
+		t := fp.getTypeFromExp(k.Elt)
+		tp = "..." + t
 	default:
 		logrus.Info("Type Expresion not supported")
 		return ""

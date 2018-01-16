@@ -97,6 +97,9 @@ func (b *BaseGenerator) GenerateNameBySample(sample string, exclude []parser.Nam
 
 // EnsureThatWeUseQualifierIfNeeded is used to see if we need to import a path of a given type.
 func (b *BaseGenerator) EnsureThatWeUseQualifierIfNeeded(tp string, imp []parser.NamedTypeValue) string {
+	if bytes.HasPrefix([]byte(tp), []byte("...")) {
+		return ""
+	}
 	if t := strings.Split(tp, "."); len(t) > 0 {
 		s := t[0]
 		for _, v := range imp {
