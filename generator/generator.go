@@ -223,6 +223,10 @@ func (p *PartialGenerator) appendStruct(name string, fields ...jen.Code) {
 	p.raw.Type().Id(name).Struct(fields...).Line()
 }
 
+func (p *PartialGenerator) appendConsts(definitions ...jen.Code){
+	p.raw.Const().Defs(definitions...).Line()
+}
+
 // NewLine insert a new line in code.
 func (p *PartialGenerator) NewLine() {
 	p.raw.Line()
