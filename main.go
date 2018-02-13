@@ -10,10 +10,13 @@ import (
 	"github.com/kujtimiihoxha/kit/cmd"
 	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 func main() {
+	cobra.OnInitialize(initConfig)
+
 	setDefaults()
 	viper.AutomaticEnv()
 	gosrc := utils.GetGOPATH() + afero.FilePathSeparator + "src" + afero.FilePathSeparator
@@ -27,6 +30,16 @@ func main() {
 		return
 	}
 	cmd.Execute()
+}
+
+func initConfig() {
+	viper.SetConfigName(".kit-cli") // name of config file (without extension) yml or json as you wish
+	viper.AddConfigPath(".")        // optionally look for config in the working directory
+
+	if err := viper.ReadInConfig(); err != nil { // Find and read the config file
+		// Handle errors reading the config file
+		logrus.Debug("faild to initialize the project config, using default config.\n")
+	}
 }
 
 func setDefaults() {
