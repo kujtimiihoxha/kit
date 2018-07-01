@@ -1066,7 +1066,6 @@ func (g *generateGRPCTransport) Generate() (err error) {
 			g.code.appendMultilineComment([]string{
 				fmt.Sprintf("decode%sResponse is a transport/grpc.DecodeRequestFunc that converts a", m.Name),
 				"gRPC request to a user-domain sum request.",
-				"TODO implement the decoder",
 			})
 			g.code.NewLine()
 			g.code.appendFunction(
@@ -1081,11 +1080,30 @@ func (g *generateGRPCTransport) Generate() (err error) {
 					jen.Error(),
 				},
 				"",
-				jen.Return(
-					jen.Nil(), jen.Qual("errors", "New").Call(
-						jen.Lit(fmt.Sprintf("'%s' Decoder is not impelemented", utils.ToCamelCase(g.name))),
-					),
+				 jen.Id("req").Op(":=").Id("r").Dot("").Call(
+					 jen.Id("*").Qual(pbImport, m.Name+"Request"),
+				 ),
+				 jen.List(
+				 	jen.Id("reqByte"),
+				 	jen.Id("err")).Op(":=").Qual("encoding/json", "Marshal").Call(
+					jen.Id("req"),
+				 ),
+
+				jen.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Return(jen.Nil(), jen.Err()),
 				),
+
+				jen.Var().Id("request").Qual(endpImports, m.Name+"Request"),
+
+				jen.Id("err").Op("=").Qual("encoding/json", "Unmarshal").Call(
+					jen.Id("reqByte"),
+					jen.Id("&request"),
+				),
+
+				jen.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Return(jen.Nil(), jen.Err()),
+				),
+				jen.Return(jen.Id("request"), jen.Nil()),
 			)
 			g.code.NewLine()
 		}
@@ -1093,7 +1111,6 @@ func (g *generateGRPCTransport) Generate() (err error) {
 			g.code.appendMultilineComment([]string{
 				fmt.Sprintf("encode%sResponse is a transport/grpc.EncodeResponseFunc that converts", m.Name),
 				"a user-domain response to a gRPC reply.",
-				"TODO implement the encoder",
 			})
 			g.code.NewLine()
 			g.code.appendFunction(
@@ -1108,11 +1125,26 @@ func (g *generateGRPCTransport) Generate() (err error) {
 					jen.Error(),
 				},
 				"",
-				jen.Return(
-					jen.Nil(), jen.Qual("errors", "New").Call(
-						jen.Lit(fmt.Sprintf("'%s' Encoder is not impelemented", utils.ToCamelCase(g.name))),
-					),
+				 jen.Id("rep").Op(":=").Id("r").Dot("").Call(
+				 	jen.Qual(endpImports, m.Name + "Response"),
+				 ),
+				 jen.List(jen.Id("repByte"), jen.Id("err")).Op(":=").Qual("encoding/json", "Marshal").Call(
+				 	jen.Id("rep"),
+				 ),
+
+				 jen.If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Nil(), jen.Err()),),
+
+				 jen.Var().Id("reply").Qual(pbImport, m.Name + "Reply"),
+
+				jen.Id("err").Op("=").Qual("encoding/json", "Unmarshal").Call(
+					jen.Id("repByte"),
+					jen.Id("&reply"),
 				),
+
+				jen.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Return(jen.Nil(), jen.Err()),
+				),
+				jen.Return(jen.Op("&").Id("reply"), jen.Nil()),
 			)
 			g.code.NewLine()
 		}
