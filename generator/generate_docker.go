@@ -132,6 +132,7 @@ func (g *GenerateDocker) generateDockerFile(name, svcFilePath, httpFilePath, grp
 RUN mkdir -p %s
 
 ADD . %s
+WORKDIR ADD . %s/%s
 
 RUN go get  -t -v ./...
 RUN go get  github.com/canthefason/go-watcher
@@ -145,6 +146,7 @@ ENTRYPOINT  watcher -run %s/%s/cmd  -watch %s/%s
 RUN mkdir -p %s
 
 ADD . %s
+WORKDIR ADD . %s/%s
 
 RUN curl https://glide.sh/get | sh
 RUN go get  github.com/canthefason/go-watcher
@@ -161,10 +163,10 @@ ENTRYPOINT  watcher -run %s/%s/cmd -watch %s/%s
 		return err
 	}
 	if g.glide {
-		dockerFile = fmt.Sprintf(dockerFile, fpath, fpath, fpath, pth, name, pth, name)
+		dockerFile = fmt.Sprintf(dockerFile, fpath, name, fpath, fpath, fpath, pth, name, pth, name)
 
 	} else {
-		dockerFile = fmt.Sprintf(dockerFile, fpath, fpath, pth, name, pth, name)
+		dockerFile = fmt.Sprintf(dockerFile, fpath, name, fpath, fpath, pth, name, pth, name)
 	}
 	return g.fs.WriteFile(path.Join(name, "Dockerfile"), dockerFile, true)
 }
