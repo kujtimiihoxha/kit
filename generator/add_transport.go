@@ -336,7 +336,7 @@ func (g *generateHTTPTransport) Generate() (err error) {
 
 		if !decoderFound {
 			g.code.appendMultilineComment([]string{
-				fmt.Sprintf("decode%sResponse  is a transport/http.DecodeRequestFunc that decodes a", m.Name),
+				fmt.Sprintf("decode%sRequest is a transport/http.DecodeRequestFunc that decodes a", m.Name),
 				"JSON-encoded request from the HTTP request body.",
 			})
 			g.code.NewLine()
