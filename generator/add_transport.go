@@ -558,7 +558,7 @@ func (g *generateHTTPTransportBase) Generate() (err error) {
 		return err
 	}
 	g.code.appendMultilineComment([]string{
-		" NewHTTPHandler returns a handler that makes a set of endpoints available on",
+		"NewHTTPHandler returns a handler that makes a set of endpoints available on",
 		"predefined paths.",
 	})
 	g.code.NewLine()
