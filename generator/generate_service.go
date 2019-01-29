@@ -867,7 +867,7 @@ func (g *generateServiceEndpoints) generateMethodEndpoint() (err error) {
 		if !failureFound {
 			g.code.appendMultilineComment(
 				[]string{
-					"Failer is an interface that should be implemented by response types.",
+					"Failure is an interface that should be implemented by response types.",
 					"Response encoders can check if responses are Failer, and if so they've",
 					"failed, and if so encode them using a separate write path based on the error.",
 				},
