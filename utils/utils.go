@@ -57,6 +57,7 @@ func GoImportsSource(path string, s string) (string, error) {
 func GetServiceImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	gosrc = strings.Split(gosrc, ";")[0]
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -77,6 +78,7 @@ func GetServiceImportPath(name string) (string, error) {
 func GetCmdServiceImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	gosrc = strings.Split(gosrc, ";")[0]
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -97,6 +99,7 @@ func GetCmdServiceImportPath(name string) (string, error) {
 func GetEndpointImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	gosrc = strings.Split(gosrc, ";")[0]
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -117,6 +120,7 @@ func GetEndpointImportPath(name string) (string, error) {
 func GetGRPCTransportImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	gosrc = strings.Split(gosrc, ";")[0]
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -137,6 +141,7 @@ func GetGRPCTransportImportPath(name string) (string, error) {
 func GetPbImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	gosrc = strings.Split(gosrc, ";")[0]
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -157,6 +162,7 @@ func GetPbImportPath(name string) (string, error) {
 func GetHTTPTransportImportPath(name string) (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	gosrc = strings.Split(gosrc, ";")[0]
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -177,6 +183,7 @@ func GetHTTPTransportImportPath(name string) (string, error) {
 func GetDockerFileProjectPath() (string, error) {
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	gosrc = strings.Split(gosrc, ";")[0]
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
