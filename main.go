@@ -17,12 +17,15 @@ func main() {
 	setDefaults()
 	viper.AutomaticEnv()
 	gosrc := utils.GetGOPATH() + afero.FilePathSeparator + "src" + afero.FilePathSeparator
+	gopath := strings.Split(gosrc, ";")[0]
 	pwd, err := os.Getwd()
 	if err != nil {
 		logrus.Error(err)
 		return
 	}
-	if !strings.HasPrefix(pwd, gosrc) {
+	if !strings.HasPrefix(pwd, gopath) {
+		logrus.Warn("---PWD:", pwd)
+		logrus.Warn("GOPATH:", gosrc)
 		logrus.Error("The project must be in the $GOPATH/src folder for the generator to work.")
 		return
 	}
