@@ -2,7 +2,7 @@ language: go
 
 env:
   - COVERALLS_TOKEN=sW1SPRRXgQPGUiUmt43mTkMUzrsyqIBY7
-
+  - GO111MODULE=on
 before_install:
   - go get github.com/mattn/goveralls
   - go get github.com/modocache/gover
