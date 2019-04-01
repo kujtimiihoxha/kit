@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/kujtimiihoxha/kit/generator"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -47,7 +47,7 @@ var initserviceCmd = &cobra.Command{
 func init() {
 	generateCmd.AddCommand(initserviceCmd)
 	initserviceCmd.Flags().StringP("transport", "t", "http", "The transport you want your service to be initiated with")
-	initserviceCmd.Flags().BoolP("dmw","w", false, "Generate default middleware for service and endpoint")
+	initserviceCmd.Flags().BoolP("dmw", "w", false, "Generate default middleware for service and endpoint")
 	initserviceCmd.Flags().Bool("gorilla", false, "Generate http using gorilla mux")
 	initserviceCmd.Flags().StringArrayVarP(&methods, "methods", "m", []string{}, "Specify methods to be generated")
 	initserviceCmd.Flags().Bool("svc-mdw", false, "If set a default Logging and Instrumental middleware will be created and attached to the service")

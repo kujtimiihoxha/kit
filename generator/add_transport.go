@@ -15,14 +15,14 @@ import (
 
 	"errors"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/dave/jennifer/jen"
 	"github.com/emicklei/proto"
+	"github.com/emicklei/proto-contrib/pkg/protofmt"
 	"github.com/kujtimiihoxha/kit/fs"
 	"github.com/kujtimiihoxha/kit/parser"
 	"github.com/kujtimiihoxha/kit/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/emicklei/proto-contrib/pkg/protofmt"
 )
 
 // GenerateTransport implement Gen, is used to generate a service transport

@@ -1,17 +1,14 @@
 language: go
 
-env:
-  - COVERALLS_TOKEN=sW1SPRRXgQPGUiUmt43mTkMUzrsyqIBY7
-
 before_install:
   - go get github.com/mattn/goveralls
   - go get github.com/modocache/gover
   - go get github.com/Masterminds/glide
 install:
-  - glide install
+  - go get
 script:
     - go test -race -v ./...
     - chmod +x coveralls.bash
     - ./coveralls.bash
 go:
-  - 1.9.x
+  - 1.12.1
