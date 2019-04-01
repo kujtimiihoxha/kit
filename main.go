@@ -17,7 +17,7 @@ import (
 func main() {
 	setDefaults()
 	viper.AutomaticEnv()
-	gosrc := utils.GetGOPATH() + afero.FilePathSeparator + "src" + afero.FilePathSeparator
+	gosrc := strings.TrimSuffix(utils.GetGOPATH(), afero.FilePathSeparator ) + afero.FilePathSeparator + "src" + afero.FilePathSeparator
 	pwd, err := os.Getwd()
 	if err != nil {
 		logrus.Error(err)
