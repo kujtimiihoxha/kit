@@ -442,7 +442,7 @@ func (g *generateGRPCClient) generateDecodeEncodeMethods(endpointImport string) 
 		g.code.NewLine()
 		g.code.appendMultilineComment([]string{
 			fmt.Sprintf("encode%sRequest is a transport/grpc.EncodeRequestFunc that converts a", m.Name),
-			" user-domain sum request to a gRPC request.",
+			fmt.Sprintf(" user-domain %s request to a gRPC request.", m.Name),
 		})
 		g.code.NewLine()
 		g.code.appendFunction(

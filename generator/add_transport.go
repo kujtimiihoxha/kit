@@ -1065,7 +1065,7 @@ func (g *generateGRPCTransport) Generate() (err error) {
 		if !decoderFound {
 			g.code.appendMultilineComment([]string{
 				fmt.Sprintf("decode%sResponse is a transport/grpc.DecodeRequestFunc that converts a", m.Name),
-				"gRPC request to a user-domain sum request.",
+				fmt.Sprintf("gRPC request to a user-domain %s request.", m.Name),
 				"TODO implement the decoder",
 			})
 			g.code.NewLine()
