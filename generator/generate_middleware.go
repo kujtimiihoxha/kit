@@ -6,11 +6,11 @@ import (
 
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/dave/jennifer/jen"
 	"github.com/kujtimiihoxha/kit/fs"
 	"github.com/kujtimiihoxha/kit/parser"
 	"github.com/kujtimiihoxha/kit/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 

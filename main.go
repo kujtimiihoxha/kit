@@ -6,9 +6,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/kujtimiihoxha/kit/cmd"
 	"github.com/kujtimiihoxha/kit/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
 )

@@ -719,7 +719,7 @@ func Test_newGenerateHTTPTransport(t *testing.T) {
 		args args
 		want Gen
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -747,7 +747,7 @@ func Test_generateHTTPTransport_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -782,7 +782,7 @@ func Test_newGenerateHTTPTransportBase(t *testing.T) {
 		args args
 		want Gen
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -811,7 +811,7 @@ func Test_generateHTTPTransportBase_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -845,7 +845,7 @@ func Test_newGenerateGRPCTransportProto(t *testing.T) {
 		args args
 		want Gen
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -874,7 +874,7 @@ func Test_generateGRPCTransportProto_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -915,7 +915,7 @@ func Test_generateGRPCTransportProto_getService(t *testing.T) {
 		fields fields
 		want   *proto.Service
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -955,7 +955,7 @@ func Test_generateGRPCTransportProto_generateRequestResponse(t *testing.T) {
 		name   string
 		fields fields
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -997,7 +997,7 @@ func Test_generateGRPCTransportProto_getServiceRPC(t *testing.T) {
 		fields fields
 		args   args
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1030,7 +1030,7 @@ func Test_newGenerateGRPCTransportBase(t *testing.T) {
 		args args
 		want Gen
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1059,7 +1059,7 @@ func Test_generateGRPCTransportBase_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1093,7 +1093,7 @@ func Test_newGenerateGRPCTransport(t *testing.T) {
 		args args
 		want Gen
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1121,7 +1121,7 @@ func Test_generateGRPCTransport_Generate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
