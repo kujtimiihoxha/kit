@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -18,6 +19,16 @@ func main() {
 	viper.AutomaticEnv()
 	gosrc := utils.GetGOPATH() + afero.FilePathSeparator + "src" + afero.FilePathSeparator
 	pwd, err := os.Getwd()
+	if err != nil {
+		logrus.Error(err)
+		return
+	}
+	gosrc, err = filepath.EvalSymlinks(gosrc)
+	if err != nil {
+		logrus.Error(err)
+		return
+	}
+	pwd, err = filepath.EvalSymlinks(pwd)
 	if err != nil {
 		logrus.Error(err)
 		return
