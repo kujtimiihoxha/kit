@@ -459,7 +459,7 @@ func (g *generateGRPCClient) generateDecodeEncodeMethods(endpointImport string) 
 			"",
 			jen.Return(
 				jen.Nil(), jen.Qual("errors", "New").Call(
-					jen.Lit(fmt.Sprintf("'%s' Encoder is not impelemented", utils.ToCamelCase(g.name))),
+					jen.Lit(fmt.Sprintf("'%s' Encoder is not implemented", utils.ToCamelCase(g.name))),
 				),
 			),
 		)
@@ -483,7 +483,7 @@ func (g *generateGRPCClient) generateDecodeEncodeMethods(endpointImport string) 
 			"",
 			jen.Return(
 				jen.Nil(), jen.Qual("errors", "New").Call(
-					jen.Lit(fmt.Sprintf("'%s' Decoder is not impelemented", utils.ToCamelCase(g.name))),
+					jen.Lit(fmt.Sprintf("'%s' Decoder is not implemented", utils.ToCamelCase(g.name))),
 				),
 			),
 		)
