@@ -215,3 +215,12 @@ func defaultGOPATH() string {
 	}
 	return ""
 }
+
+// GetServiceInterfaceName returns the service interface name
+func GetServiceInterfaceName(name string) string {
+	format := viper.GetString("gk_service_interface_name")
+	if format == "" {
+		format = "%sService"
+	}
+	return fmt.Sprintf(format, ToCamelCase(name))
+}

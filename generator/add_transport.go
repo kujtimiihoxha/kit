@@ -44,7 +44,7 @@ func NewGenerateTransport(name string, gorillaMux bool, transport string, method
 	i := &GenerateTransport{
 		name:          name,
 		gorillaMux:    gorillaMux,
-		interfaceName: utils.ToCamelCase(name + "Service"),
+		interfaceName: utils.GetServiceInterfaceName(name),
 		destPath:      fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(name)),
 		methods:       methods,
 	}
@@ -196,7 +196,7 @@ func newGenerateHTTPTransport(name string, gorillaMux bool, serviceInterface par
 	t := &generateHTTPTransport{
 		name:             name,
 		methods:          methods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 		gorillaMux:       gorillaMux,
@@ -536,7 +536,7 @@ func newGenerateHTTPTransportBase(name string, gorillaMux bool, serviceInterface
 		methods:          methods,
 		gorillaMux:       gorillaMux,
 		allMethods:       allMethods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
@@ -647,7 +647,7 @@ func newGenerateGRPCTransportProto(name string, serviceInterface parser.Interfac
 	t := &generateGRPCTransportProto{
 		name:             name,
 		methods:          methods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_pb_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
@@ -870,7 +870,7 @@ func newGenerateGRPCTransportBase(name string, serviceInterface parser.Interface
 		name:             name,
 		methods:          methods,
 		allMethods:       allMethods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
@@ -973,7 +973,7 @@ func newGenerateGRPCTransport(name string, serviceInterface parser.Interface, me
 	t := &generateGRPCTransport{
 		name:             name,
 		methods:          methods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
