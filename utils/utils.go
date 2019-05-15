@@ -224,3 +224,12 @@ func GetServiceInterfaceName(name string) string {
 	}
 	return fmt.Sprintf(format, ToCamelCase(name))
 }
+
+// GetProtoServiceName returns the protobuf service name
+func GetProtoServiceName(name string) string {
+	format := viper.GetString("gk_proto_service_name")
+	if format == "" {
+		format = "%s"
+	}
+	return fmt.Sprintf(format, name)
+}

@@ -645,7 +645,7 @@ type generateGRPCTransportProto struct {
 
 func newGenerateGRPCTransportProto(name string, serviceInterface parser.Interface, methods []string) Gen {
 	t := &generateGRPCTransportProto{
-		name:             name,
+		name:             utils.GetProtoServiceName(name),
 		methods:          methods,
 		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_pb_path_format"), utils.ToLowerSnakeCase(name)),
@@ -948,7 +948,7 @@ func (g *generateGRPCTransportBase) Generate() (err error) {
 			jen.Id("options").Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/grpc", "ServerOption"),
 		},
 		[]jen.Code{
-			jen.Qual(pbImport, utils.ToCamelCase(g.name)+"Server"),
+			jen.Qual(pbImport, utils.ToCamelCase(utils.GetProtoServiceName(g.name)+"Server")),
 		},
 		"",
 		jen.Return(jen.Id("&grpcServer").Values(vl)),
