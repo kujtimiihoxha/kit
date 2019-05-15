@@ -74,5 +74,6 @@ func setDefaults() {
 	viper.SetDefault("gk_service_struct_prefix", "basic")
 	viper.SetDefault("gk_service_interface_name", "%sService")
 	viper.SetDefault("gk_proto_service_name", "%s")
+	viper.SetDefault("gk_proto_package_name", "%s")
 
 }

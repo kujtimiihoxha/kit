@@ -689,13 +689,17 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 	}
 	if g.generateFirstTime {
 		g.getServiceRPC(svc)
+		pkg := viper.GetString("gk_proto_package_name")
+		if pkg == "" {
+			pkg = "pb"
+		}
 		g.protoSrc.Elements = append(
 			g.protoSrc.Elements,
 			&proto.Syntax{
 				Value: "proto3",
 			},
 			&proto.Package{
-				Name: "pb",
+				Name: pkg,
 			},
 			svc,
 		)
