@@ -231,5 +231,14 @@ func GetProtoServiceName(name string) string {
 	if format == "" {
 		format = "%s"
 	}
-	return fmt.Sprintf(format, name)
+	return ToCamelCase(fmt.Sprintf(format, name))
+}
+
+// GetProtoPackageName returns the protobuf package name
+func GetProtoPackageName() string {
+	format := viper.GetString("gk_proto_package_name")
+	if format == "" {
+		return "pb"
+	}
+	return fmt.Sprintf(format, "pb")
 }

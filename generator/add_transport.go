@@ -689,17 +689,13 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 	}
 	if g.generateFirstTime {
 		g.getServiceRPC(svc)
-		pkg := viper.GetString("gk_proto_package_name")
-		if pkg == "" {
-			pkg = "pb"
-		}
 		g.protoSrc.Elements = append(
 			g.protoSrc.Elements,
 			&proto.Syntax{
 				Value: "proto3",
 			},
 			&proto.Package{
-				Name: pkg,
+				Name: utils.GetProtoPackageName(),
 			},
 			svc,
 		)
@@ -952,7 +948,7 @@ func (g *generateGRPCTransportBase) Generate() (err error) {
 			jen.Id("options").Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/grpc", "ServerOption"),
 		},
 		[]jen.Code{
-			jen.Qual(pbImport, utils.ToCamelCase(utils.GetProtoServiceName(g.name)+"Server")),
+			jen.Qual(pbImport, utils.GetProtoServiceName(g.name)+"Server"),
 		},
 		"",
 		jen.Return(jen.Id("&grpcServer").Values(vl)),

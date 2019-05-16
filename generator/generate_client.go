@@ -395,7 +395,7 @@ func (g *generateGRPCClient) Generate() (err error) {
 					"NewClient",
 				).Call(
 					jen.Id("conn"),
-					jen.Lit("pb."+utils.ToCamelCase(g.name)),
+					jen.Lit(utils.GetProtoPackageName()+"."+utils.GetProtoServiceName(g.name)),
 					jen.Lit(m.Name),
 					jen.Id(fmt.Sprintf("encode%sRequest", m.Name)),
 					jen.Id(fmt.Sprintf("decode%sResponse", m.Name)),
