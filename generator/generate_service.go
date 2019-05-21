@@ -1987,7 +1987,7 @@ func (g *generateCmd) generateInitGRPC() (err error) {
 				jen.Id("*grpcAddr"),
 			),
 			jen.Id("baseServer").Op(":=").Qual("google.golang.org/grpc", "NewServer").Call(),
-			jen.Qual(pbImport, fmt.Sprintf("Register%sServer", utils.ToCamelCase(g.name))).Call(
+			jen.Qual(pbImport, fmt.Sprintf("Register%sServer", utils.GetProtoServiceName(g.name))).Call(
 				jen.Id("baseServer"),
 				jen.Id("grpcServer"),
 			),
