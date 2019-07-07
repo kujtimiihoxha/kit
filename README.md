@@ -109,6 +109,17 @@ kit g m hi -s hello
 kit g m hi -s hello -e # if you want to add endpoint middleware
 ```
 The only thing left to do is add your middleware logic and wire the middleware with your service/endpoint.
+# Mod support
+If you want to create project outside the gopath, you should use --mod_module flag when you create a new service, generate the service, the client library and the new middleware. The --mod_module value should be as same as your mod module path and is under your work directory. 
+
+For example, under your work directory /XXX/github.com/groupname, running commands as follows:
+
+```bash
+kit n s hello --mod_mudole github.com/groupname/hello
+kit g s hello --mod_mudole github.com/groupname/hello --dmw 
+kit g c hello --mod_mudole github.com/groupname/hello
+cd hello && go mod init github.com/groupname/hello
+```
 # Enable docker integration
 
 ```bash

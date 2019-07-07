@@ -31,9 +31,12 @@ func init() {
 	RootCmd.PersistentFlags().BoolP("debug", "d", false, "If you want to se the debug logs.")
 	RootCmd.PersistentFlags().BoolP("force", "f", false, "Force overide existing files without asking.")
 	RootCmd.PersistentFlags().StringP("folder", "b", "", "If you want to specify the base folder of the project.")
+	RootCmd.PersistentFlags().String("mod_module", "", "The mod module path you plan to set in the project")
+
 	viper.BindPFlag("gk_folder", RootCmd.PersistentFlags().Lookup("folder"))
 	viper.BindPFlag("gk_force", RootCmd.PersistentFlags().Lookup("force"))
 	viper.BindPFlag("gk_debug", RootCmd.PersistentFlags().Lookup("debug"))
+	viper.BindPFlag("g_s_mod_module", RootCmd.PersistentFlags().Lookup("mod_module"))
 }
 
 func checkProtoc() bool {

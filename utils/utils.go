@@ -55,122 +55,32 @@ func GoImportsSource(path string, s string) (string, error) {
 
 // GetServiceImportPath returns the import path of the service interface.
 func GetServiceImportPath(name string) (string, error) {
-	gosrc := GetGOPATH() + "/src/"
-	gosrc = strings.Replace(gosrc, "\\", "/", -1)
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	if viper.GetString("gk_folder") != "" {
-		pwd += "/" + viper.GetString("gk_folder")
-	}
-	pwd = strings.Replace(pwd, "\\", "/", -1)
-	projectPath := strings.Replace(pwd, gosrc, "", 1)
-	svcPath := fmt.Sprintf(viper.GetString("gk_service_path_format"), ToLowerSnakeCase(name))
-
-	svcPath = strings.Replace(svcPath, "\\", "/", -1)
-	serviceImport := projectPath + "/" + svcPath
-	return serviceImport, nil
+	return getImportPath(name, "gk_service_path_format")
 }
 
 // GetCmdServiceImportPath returns the import path of the cmd service (used by cmd/main.go).
 func GetCmdServiceImportPath(name string) (string, error) {
-	gosrc := GetGOPATH() + "/src/"
-	gosrc = strings.Replace(gosrc, "\\", "/", -1)
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	if viper.GetString("gk_folder") != "" {
-		pwd += "/" + viper.GetString("gk_folder")
-	}
-	pwd = strings.Replace(pwd, "\\", "/", -1)
-	projectPath := strings.Replace(pwd, gosrc, "", 1)
-	svcPath := fmt.Sprintf(viper.GetString("gk_cmd_service_path_format"), ToLowerSnakeCase(name))
-
-	svcPath = strings.Replace(svcPath, "\\", "/", -1)
-	serviceImport := projectPath + "/" + svcPath
-	return serviceImport, nil
+	return getImportPath(name, "gk_cmd_service_path_format")
 }
 
 // GetEndpointImportPath returns the import path of the service endpoints.
 func GetEndpointImportPath(name string) (string, error) {
-	gosrc := GetGOPATH() + "/src/"
-	gosrc = strings.Replace(gosrc, "\\", "/", -1)
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	if viper.GetString("gk_folder") != "" {
-		pwd += "/" + viper.GetString("gk_folder")
-	}
-	pwd = strings.Replace(pwd, "\\", "/", -1)
-	projectPath := strings.Replace(pwd, gosrc, "", 1)
-	epPath := fmt.Sprintf(viper.GetString("gk_endpoint_path_format"), ToLowerSnakeCase(name))
-
-	epPath = strings.Replace(epPath, "\\", "/", -1)
-	endpointImport := projectPath + "/" + epPath
-	return endpointImport, nil
+	return getImportPath(name, "gk_endpoint_path_format")
 }
 
 // GetGRPCTransportImportPath returns the import path of the service grpc transport.
 func GetGRPCTransportImportPath(name string) (string, error) {
-	gosrc := GetGOPATH() + "/src/"
-	gosrc = strings.Replace(gosrc, "\\", "/", -1)
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	if viper.GetString("gk_folder") != "" {
-		pwd += "/" + viper.GetString("gk_folder")
-	}
-	pwd = strings.Replace(pwd, "\\", "/", -1)
-	projectPath := strings.Replace(pwd, gosrc, "", 1)
-	epPath := fmt.Sprintf(viper.GetString("gk_grpc_path_format"), ToLowerSnakeCase(name))
-
-	epPath = strings.Replace(epPath, "\\", "/", -1)
-	endpointImport := projectPath + "/" + epPath
-	return endpointImport, nil
+	return getImportPath(name, "gk_grpc_path_format")
 }
 
 // GetPbImportPath returns the import path of the generated service grpc pb.
 func GetPbImportPath(name string) (string, error) {
-	gosrc := GetGOPATH() + "/src/"
-	gosrc = strings.Replace(gosrc, "\\", "/", -1)
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	if viper.GetString("gk_folder") != "" {
-		pwd += "/" + viper.GetString("gk_folder")
-	}
-	pwd = strings.Replace(pwd, "\\", "/", -1)
-	projectPath := strings.Replace(pwd, gosrc, "", 1)
-	epPath := fmt.Sprintf(viper.GetString("gk_grpc_pb_path_format"), ToLowerSnakeCase(name))
-
-	epPath = strings.Replace(epPath, "\\", "/", -1)
-	endpointImport := projectPath + "/" + epPath
-	return endpointImport, nil
+	return getImportPath(name, "gk_grpc_pb_path_format")
 }
 
 // GetHTTPTransportImportPath returns the import path of the service http transport.
 func GetHTTPTransportImportPath(name string) (string, error) {
-	gosrc := GetGOPATH() + "/src/"
-	gosrc = strings.Replace(gosrc, "\\", "/", -1)
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	if viper.GetString("gk_folder") != "" {
-		pwd += "/" + viper.GetString("gk_folder")
-	}
-	pwd = strings.Replace(pwd, "\\", "/", -1)
-	projectPath := strings.Replace(pwd, gosrc, "", 1)
-	epPath := fmt.Sprintf(viper.GetString("gk_http_path_format"), ToLowerSnakeCase(name))
-
-	epPath = strings.Replace(epPath, "\\", "/", -1)
-	httpImports := projectPath + "/" + epPath
-	return httpImports, nil
+	return getImportPath(name, "gk_http_path_format")
 }
 
 // GetDockerFileProjectPath returns the path of the project.
@@ -184,8 +94,10 @@ func GetDockerFileProjectPath() (string, error) {
 	if viper.GetString("gk_folder") != "" {
 		pwd += "/" + viper.GetString("gk_folder")
 	}
+
 	pwd = strings.Replace(pwd, "\\", "/", -1)
 	projectPath := strings.Replace(pwd, gosrc, "", 1)
+
 	return projectPath, nil
 }
 
@@ -215,3 +127,41 @@ func defaultGOPATH() string {
 	}
 	return ""
 }
+
+func getImportPath(name string, key string) (string, error) {
+	gosrc := GetGOPATH() + "/src/"
+	gosrc = strings.Replace(gosrc, "\\", "/", -1)
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if viper.GetString("gk_folder") != "" {
+		pwd += "/" + viper.GetString("gk_folder")
+	}
+
+	pwd = strings.Replace(pwd, "\\", "/", -1)
+	projectPath := strings.Replace(pwd, gosrc, "", 1)
+
+	svcPath := fmt.Sprintf(viper.GetString(key), ToLowerSnakeCase(name))
+
+	path := strings.Replace(svcPath, "\\", "/", -1)
+	if viper.GetString("g_s_mod_module") != "" {
+		projectPath = viper.GetString("g_s_mod_module")
+		projectPath = strings.Replace(projectPath, "\\", "/", -1)
+
+		projectPathArr := strings.Split(projectPath, "/")
+		pathArr := strings.Split(path, "/")
+		if len(projectPathArr) != 0 && len(pathArr) != 0 && projectPathArr[len(projectPathArr) - 1] == pathArr[0] {
+			projectPathArr = projectPathArr[0:len(projectPathArr) - 1]
+			projectPath = strings.Join(projectPathArr, "/")
+		}
+	}
+	var importPath string
+	if projectPath == "" {
+		importPath = path
+	} else {
+		importPath = projectPath + "/" + path
+	}
+	return importPath, nil
+}
+
