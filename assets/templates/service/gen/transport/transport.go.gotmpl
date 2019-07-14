@@ -1,0 +1,7 @@
+package transport
+
+import 	"{{ .ProjectModule }}/{{ .ServicePackage }}/gen/transport/http"
+
+type Transports interface {
+	HTTP() http.Transport
+}

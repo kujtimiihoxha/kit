@@ -1,0 +1,63 @@
+package endpoint
+{{$service := .ServiceInterface}}
+import (
+	"context"
+	"github.com/go-kit/kit/endpoint"
+	service "{{ .ProjectModule }}/{{ .ServicePackage }}"
+)
+{{ with .ServiceMethod }}
+{{ $resLength :=  len .Results }}{{ $reqLength :=  len .Params }}
+type {{ .Name }}Response struct {
+{{  if eq $resLength  2 }} Response {{ with index .Results 0}} {{ .Type }} {{ end }}{{ end }}
+    Err error
+}
+type {{ .Name }}EndpointFunc func({{ paramsString .Params}}) (response {{ .Name }}Response, err error)
+type {{ .Name }}EndpointMiddleware func({{ .Name }}EndpointFunc) {{ .Name }}EndpointFunc
+type {{ .Name }}Endpoint interface {
+	Middleware(...{{ .Name }}EndpointMiddleware)
+	Endpoint() endpoint.Endpoint
+	Set({{ .Name }}EndpointFunc)
+}
+type {{ toLowerFirst .Name }} struct {
+	endpoint         {{ .Name }}EndpointFunc
+	middleware       []{{ .Name }}EndpointMiddleware
+	globalMiddleware []endpoint.Middleware
+}
+
+func make{{ .Name }}Endpoint(svc service.{{ with $service }}{{ .Name }}{{ end }}, global ...endpoint.Middleware) {{ .Name }}Endpoint {
+	return &{{ toLowerFirst .Name }}{
+		endpoint:         {{ toLowerFirst .Name }}Endpoint(svc),
+		globalMiddleware: global,
+	}
+}
+
+func {{ toLowerFirst .Name }}Endpoint(b service.{{ with $service }}{{ .Name }}{{ end }}) {{ .Name }}EndpointFunc {
+	return func({{ paramsString .Params}}) ({{ .Name }}Response, error) {
+		{{  if eq  $resLength 2 }} res, {{end}} err := b.{{ .Name }}(ctx{{ if eq $reqLength  2 }}, {{ with index .Params 1}}{{.Name}}{{ end }}{{ end }})
+		return {{ .Name }}Response{{"{"}}{{  if eq  $resLength 2 }}Response:res, {{end}}Err: err}, nil
+	}
+}
+
+func (e *{{ toLowerFirst .Name }}) Endpoint() endpoint.Endpoint {
+	ep := e.endpoint
+	for _, mdw := range e.middleware {
+		ep = mdw(ep)
+	}
+	kitEp := func(ctx context.Context, request interface{}) (response interface{}, err error) {
+        {{ if eq $reqLength  2 }}req := request.({{ with index .Params 1 }} {{ .Type }} {{ end }}){{ end }}
+        return ep(ctx{{ if eq $reqLength  2 }}, req{{ end }})
+	}
+	for _, mdw := range e.globalMiddleware {
+		kitEp = mdw(kitEp)
+	}
+	return kitEp
+}
+
+func (e *{{ toLowerFirst .Name }}) Set(endpoint {{ .Name }}EndpointFunc) {
+	e.endpoint = endpoint
+}
+
+func (e *{{ toLowerFirst .Name }}) Middleware(mdw ...{{ .Name }}EndpointMiddleware) {
+	e.middleware = append(e.middleware, mdw...)
+}
+{{ end }}

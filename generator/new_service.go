@@ -1,55 +1,42 @@
 package generator
 
 import (
-	"fmt"
-	"path"
+	"errors"
+	"kit/fs"
+	"kit/template"
 	"strings"
 
-	"github.com/dave/jennifer/jen"
-	"github.com/kujtimiihoxha/kit/fs"
-	"github.com/kujtimiihoxha/kit/utils"
-	"github.com/spf13/viper"
+	"github.com/ozgio/strutil"
+	"github.com/spf13/afero"
 )
 
-// NewService implements Gen and is used to create a new service.
-type NewService struct {
-	BaseGenerator
-	name          string
-	interfaceName string
-	destPath      string
-	filePath      string
-}
+// NewService generates a new service with the given name
+func NewService(name string) error {
+	appFs := fs.AppFs()
 
-// NewNewService returns a initialized and ready generator.
-//
-// The name parameter is the name of the service that will be created
-// this name should be without the `Service` suffix
-func NewNewService(name string) Gen {
-	gs := &NewService{
-		name:          name,
-		interfaceName: utils.ToCamelCase(name + "Service"),
-		destPath:      fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(name)),
-	}
-	gs.filePath = path.Join(gs.destPath, viper.GetString("gk_service_file_name"))
-	gs.srcFile = jen.NewFilePath(strings.Replace(gs.destPath, "\\", "/", -1))
-	gs.InitPg()
-	gs.fs = fs.Get()
-	return gs
-}
+	b, err := afero.Exists(appFs, "kit.json")
 
-// Generate will run the generator.
-func (g *NewService) Generate() error {
-	g.CreateFolderStructure(g.destPath)
-	comments := []string{
-		"Add your methods here",
-		"e.x: Foo(ctx context.Context,s string)(rs string, err error)",
+	if err != nil {
+		return err
+	} else if !b {
+		return errors.New("not in a kit project, you need to be in a project to run this command")
 	}
-	partial := NewPartialGenerator(nil)
-	partial.appendMultilineComment(comments)
-	g.code.Raw().Commentf("%s describes the service.", g.interfaceName).Line()
-	g.code.appendInterface(
-		g.interfaceName,
-		[]jen.Code{partial.Raw()},
-	)
-	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), false)
+
+	// we should remove the '_' because of this guide https://blog.golang.org/package-names
+	folderName := strings.ReplaceAll(strutil.ToSnakeCase(name), "_", "")
+
+	if err := fs.CreateFolder(folderName, appFs); err != nil {
+		return err
+	}
+
+	data := map[string]string{
+		"ProjectModule": folderName,
+	}
+
+	serviceFile, err := template.CompileGoFromPath("/assets/templates/service/service.go.gotmpl", data)
+	if err != nil {
+		return err
+	}
+	svcFs := afero.NewBasePathFs(appFs, folderName)
+	return fs.CreateFile("service.go", serviceFile, svcFs)
 }

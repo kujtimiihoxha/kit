@@ -1,0 +1,39 @@
+package gen
+
+import (
+    "{{ .ProjectModule }}/{{ .ServicePackage }}/gen/endpoint"
+    "{{ .ProjectModule }}/{{ .ServicePackage }}/gen/transport"
+    generatedTransport "{{ .ProjectModule }}/{{ .ServicePackage }}/gen/transport/http"
+    service "{{ .ProjectModule }}/{{ .ServicePackage }}"
+    kitEndpoint "github.com/go-kit/kit/endpoint"
+    "github.com/go-kit/kit/transport/http"
+)
+
+type serviceTransport struct {
+    http generatedTransport.Transport
+}
+
+func (b *serviceTransport) HTTP() generatedTransport.Transport {
+    return b.http
+}
+
+type ServiceMiddleware func(service.Service) service.Service
+
+func MakeService(svc service.{{ .InterfaceName }}, mdw ...ServiceMiddleware) service.{{ .InterfaceName }} {
+    for _, m := range mdw {
+        svc = m(svc)
+    }
+    return svc
+}
+
+func MakeTransports(endpoints endpoint.Endpoints, httpOptions ...http.ServerOption) transport.Transports {
+    httpTransport := generatedTransport.MakeHttpTransport(endpoints, httpOptions...)
+    return &serviceTransport{
+        http: httpTransport,
+    }
+}
+
+func MakeEndpoints(b service.{{ .InterfaceName }}, global ...kitEndpoint.Middleware) endpoint.Endpoints {
+    serviceEndpoints := endpoint.MakeEndpoints(b, global...)
+    return serviceEndpoints
+}
