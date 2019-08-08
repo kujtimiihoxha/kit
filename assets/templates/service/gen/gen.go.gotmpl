@@ -16,10 +16,10 @@ type serviceTransport struct {
 func (b *serviceTransport) HTTP() generatedTransport.Transport {
     return b.http
 }
+{{ with .ServiceInterface }}
+type ServiceMiddleware func(service.{{ .Name }}) service.{{ .Name }}
 
-type ServiceMiddleware func(service.Service) service.Service
-
-func MakeService(svc service.{{ .InterfaceName }}, mdw ...ServiceMiddleware) service.{{ .InterfaceName }} {
+func MakeService(svc service.{{ .Name }}, mdw ...ServiceMiddleware) service.{{ .Name }} {
     for _, m := range mdw {
         svc = m(svc)
     }
@@ -33,7 +33,8 @@ func MakeTransports(endpoints endpoint.Endpoints, httpOptions ...http.ServerOpti
     }
 }
 
-func MakeEndpoints(b service.{{ .InterfaceName }}, global ...kitEndpoint.Middleware) endpoint.Endpoints {
+func MakeEndpoints(b service.{{ .Name }}, global ...kitEndpoint.Middleware) endpoint.Endpoints {
     serviceEndpoints := endpoint.MakeEndpoints(b, global...)
     return serviceEndpoints
 }
+{{ end }}

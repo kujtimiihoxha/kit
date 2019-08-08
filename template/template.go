@@ -2,7 +2,6 @@ package template
 
 import (
 	"bytes"
-	"fmt"
 	"golang.org/x/tools/imports"
 	"io/ioutil"
 	"text/template"
@@ -29,7 +28,9 @@ func CompileFromPath(tplPath string, data interface{}) (string, error) {
 }
 func CompileGoFromPath(tplPath string, data interface{}) (string, error) {
 	src, err := CompileFromPath(tplPath, data)
-	fmt.Println(src, err)
+	if err != nil {
+		return "", err
+	}
 	prettyCode, err := imports.Process("template.go", []byte(src), nil)
 	return string(prettyCode), err
 }

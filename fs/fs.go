@@ -33,3 +33,8 @@ func CreateFolder(path string, fs afero.Fs) error {
 func CreateFile(path, data string, fs afero.Fs) error {
 	return afero.WriteFile(fs, path, []byte(data), 0644)
 }
+
+func ReadFile(path string, fs afero.Fs) (string, error) {
+	b, err := afero.ReadFile(fs, path)
+	return string(b), err
+}

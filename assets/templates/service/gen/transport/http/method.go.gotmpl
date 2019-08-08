@@ -1,7 +1,6 @@
 package http
-{{ $resLength :=  len .Results }}{{ $reqLength :=  len .Params }}
 import (
-	"{{ .ProjectModule }}/{{ .ServicePackage }}/generated/endpoint"
+	"{{ .ProjectModule }}/{{ .ServicePackage }}/gen/endpoint"
 	"context"
 	"encoding/json"
 
@@ -10,8 +9,10 @@ import (
 	goKitHttp "github.com/go-kit/kit/transport/http"
 	goHttp "net/http"
 )
-
-type {{ .Name }}DecodeRequestFunc func(context.Context, *goHttp.Request) ({{ paramsString .Requests }})
+{{ $methodRoutes := .MethodRoutes}}
+{{ with .ServiceMethod }}
+{{ $resLength :=  len .Results }}{{ $reqLength :=  len .Params }}
+type {{ .Name }}DecodeRequestFunc func(context.Context{{if eq $reqLength 2}} , *goHttp.Request{{ end }}) ({{if eq $reqLength 2}} {{ with index .Params 1 }} {{.Type}} {{ end }}, {{ end }}error)
 
 type {{ .Name }}EncodeResponseFunc func(context.Context, goHttp.ResponseWriter{{if eq $resLength 2}}, {{ with index .Results 0}} {{ .Type }} {{ end }}{{end}}) error
 
@@ -45,16 +46,15 @@ func make{{.Name}}HttpTransport(endpoint goKitEndpoint.Endpoint) {{.Name}}HTTP {
 
 func {{ toLowerFirst .Name }}RouteMethods() []MethodRoute {
 	return []MethodRoute{
-		{{range .MethodRoutes}}{
+		{{range $methodRoutes}}{
 			Name:   "{{.Name}}",
 			Route:  "{{.Route}}",
-			Methods: {{.Methods}},
+			Methods: []Method{{"{"}}{{.Methods}}{{"}"}},
 		},
 	{{end}}}
 }
-func {{ toLowerFirst .Name }}Decoder(_ context.Context, r *goHttp.Request) ({{if eq $reqLength 2}}request {{ with index .Params 1}} {{ .Type }} {{ end }}, {{end}}err error) {
-{{if eq $reqLength 2}}request = {{ with index .Params 1}} {{ .Type }} {{ end }}{}
-	err = json.NewDecoder(r.Body).Decode(&req)
+func {{ toLowerFirst .Name }}Decoder(_ context.Context{{if eq $reqLength 2}}, r *goHttp.Request{{ end }}) ({{if eq $reqLength 2}}request {{ with index .Params 1}} {{ .Type }} {{ end }}, {{end}}err error) {
+{{if eq $reqLength 2}}err = json.NewDecoder(r.Body).Decode(&request)
 	return request, err{{ else }}return nil{{ end }}
 }
 
@@ -100,7 +100,11 @@ func (h *{{ toLowerFirst .Name }}) Handler() goHttp.Handler {
 		return h.encoder(ctx, w{{ if eq $resLength 2 }}, res{{ end }})
 	}
 	decoder := func(ctx context.Context, r *goHttp.Request) (re interface{}, err error) {
+        {{ if eq $reqLength 2 }}
 		return h.decoder(ctx, r)
+        {{else}}
+        return nil, h.decoder(ctx)
+        {{end}}
 	}
 	return goKitHttp.NewServer(
 		h.endpoint,
@@ -109,3 +113,4 @@ func (h *{{ toLowerFirst .Name }}) Handler() goHttp.Handler {
 		h.options...,
 	)
 }
+{{ end }}

@@ -31,15 +31,16 @@ type HTTP interface {
 	Options([]goKitHttp.ServerOption)
 	Handler() goHttp.Handler
 }
+{{ with .ServiceInterface }}
 
 type Transport interface {
-	{{ range .Methods }}{{ . }}() {{ . }}HTTP
+	{{ range .Methods }}{{ .Name }}() {{ .Name }}HTTP
 {{ end }}
 	Iterate(func(httpTransport HTTP))
 }
 
 type httpTransport struct {
-	{{ range .Methods}}{{ toLowerFirst .}} {{ . }}HTTP
+	{{ range .Methods}}{{ toLowerFirst .Name}} {{ .Name }}HTTP
 {{ end }}}
 
 var defaultErrorEncoder = goKitHttp.DefaultErrorEncoder
@@ -49,22 +50,22 @@ func SetDefaultErrorEncoder(encoder goKitHttp.ErrorEncoder) {
 }
 func MakeHttpTransport(endpoints endpoint.Endpoints, global ...goKitHttp.ServerOption) Transport {
 	httpTransport := makeRootHttpTransport(endpoints)
-	{{ range .Methods }}httpTransport.{{ . }}().Options(global)
+	{{ range .Methods }}httpTransport.{{ .Name }}().Options(global)
 	{{ end }}return httpTransport
 }
 func makeRootHttpTransport(endpoints endpoint.Endpoints) Transport {
 	return &httpTransport{
-		{{ range .Methods}}{{ toLowerFirst .}}:    make{{ . }}HttpTransport(endpoints.{{ . }}().Endpoint()),
+		{{ range .Methods}}{{ toLowerFirst .Name }}:    make{{ .Name }}HttpTransport(endpoints.{{ .Name }}().Endpoint()),
 	{{ end }}}
 }
 {{ range .Methods}}
-func (b *httpTransport) {{ . }}() {{ . }}HTTP {
-	return b.{{ toLowerFirst .}}
+func (b *httpTransport) {{ .Name }}() {{ .Name }}HTTP {
+	return b.{{ toLowerFirst .Name }}
 }
 {{ end }}
 func (b *httpTransport) Iterate(iterFunc func(HTTP)) {
 	all := []HTTP{
-		{{ range .Methods }}b.{{ toLowerFirst .}},
+		{{ range .Methods }}b.{{ toLowerFirst .Name }},
 	{{ end }}}
 
 	for _, m := range all {
@@ -89,3 +90,4 @@ func AddHttpServerOption(httpTransport Transport, opts ...goKitHttp.ServerOption
 		method.Options(opts)
 	})
 }
+{{ end }}

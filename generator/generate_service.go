@@ -71,25 +71,42 @@ func GenerateService(name string) error {
 	if err != nil {
 		return err
 	}
-
+	genFs := afero.NewBasePathFs(appFs, "gen")
 	err = generateEndpoints(
 		serviceInterface,
-		afero.NewBasePathFs(appFs, "gen"),
+		genFs,
 		kitConfig.Module,
 		serviceSource.Package(),
 	)
 	if err != nil {
 		return err
 	}
-	//err = generateTransports(
-	//	serviceInterface,
-	//	afero.NewBasePathFs(appFs, "generated"),
-	//	goModule.Name,
-	//	serviceSource.Package(),
-	//)
-	//if err != nil {
-	//	return err
-	//}
+	err = generateTransports(
+		serviceInterface,
+		genFs,
+		kitConfig.Module,
+		serviceSource.Package(),
+	)
+	if err != nil {
+		return err
+	}
+	err = generateGen(
+		serviceInterface,
+		genFs,
+		kitConfig.Module,
+		serviceSource.Package(),
+	)
+	if err != nil {
+		return err
+	}
+	err = generateCmd(
+		genFs,
+		kitConfig.Module,
+		serviceSource.Package(),
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func isServiceInterface(inf source.Interface) bool {
@@ -101,7 +118,48 @@ func isServiceInterface(inf source.Interface) bool {
 	return false
 }
 
-//
+func generateCmd(generatedFs afero.Fs, moduleName, packageName string) error {
+	err := fs.CreateFolder("cmd", generatedFs)
+	if err != nil {
+		return err
+	}
+
+	generatedFs = afero.NewBasePathFs(generatedFs, "cmd")
+
+	genCode, err := template.CompileGoFromPath(
+		"/assets/templates/service/gen/cmd/cmd.go.gotmpl",
+		map[string]interface{}{
+			"ProjectModule":  moduleName,
+			"ServicePackage": packageName,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	err = fs.CreateFile("cmd.go", genCode, generatedFs)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func generateGen(svcInterface *source.Interface, generatedFs afero.Fs, moduleName, packageName string) error {
+	genCode, err := template.CompileGoFromPath(
+		"/assets/templates/service/gen/gen.go.gotmpl",
+		map[string]interface{}{
+			"ServiceInterface": svcInterface,
+			"ProjectModule":    moduleName,
+			"ServicePackage":   packageName,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	err = fs.CreateFile("gen.go", genCode, generatedFs)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func generateEndpoints(svcInterface *source.Interface, generatedFs afero.Fs, moduleName, packageName string) error {
 	err := fs.CreateFolder("endpoint", generatedFs)
 	if err != nil {
@@ -127,11 +185,15 @@ func generateEndpoints(svcInterface *source.Interface, generatedFs afero.Fs, mod
 	}
 
 	for _, mth := range svcInterface.Methods() {
-		methodEndpointCode, err :=  template.CompileGoFromPath(
+		fixMethodTypes(&mth)
+		for _, p := range mth.Params() {
+			fmt.Println(p.Name, p.Type.Import.FilePath)
+		}
+		methodEndpointCode, err := template.CompileGoFromPath(
 			"/assets/templates/service/gen/endpoint/method.go.gotmpl",
 			map[string]interface{}{
 				"ServiceInterface": svcInterface,
-				"ServiceMethod": &mth,
+				"ServiceMethod":    &mth,
 				"ProjectModule":    moduleName,
 				"ServicePackage":   packageName,
 			},
@@ -151,54 +213,76 @@ func generateEndpoints(svcInterface *source.Interface, generatedFs afero.Fs, mod
 	return nil
 }
 
-//
-//func generateTransports(svcInterface *source.Interface, generatedFs afero.Fs, moduleName, packageName string) error {
-//	err := fs.CreateFolder("transport", generatedFs)
-//	if err != nil {
-//		return err
-//	}
-//
-//	generatedFs = afero.NewBasePathFs(generatedFs, "transport")
-//
-//	transportsCode, err := templates.TransportsFile(moduleName, packageName)
-//	if err != nil {
-//		return err
-//	}
-//	err = fs.CreateFile("transports.go", transportsCode, generatedFs)
-//	if err != nil {
-//		return err
-//	}
-//
-//	err = fs.CreateFolder("http", generatedFs)
-//	if err != nil {
-//		return err
-//	}
-//
-//	generatedFs = afero.NewBasePathFs(generatedFs, "http")
-//
-//	allHttpCode, err := templates.AllHttpFile(svcInterface, moduleName, packageName)
-//	if err != nil {
-//		return err
-//	}
-//
-//	err = fs.CreateFile("http.go", allHttpCode, generatedFs)
-//	if err != nil {
-//		return err
-//	}
-//
-//	for _, mth := range svcInterface.Methods() {
-//		methodHttpCode, err := templates.MethodHttpFile(mth, moduleName, packageName)
-//		if err != nil {
-//			return err
-//		}
-//		err = fs.CreateFile(
-//			fmt.Sprintf("%s.go", strutil.ToSnakeCase(mth.Name())),
-//			methodHttpCode,
-//			generatedFs,
-//		)
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	return nil
-//}
+func generateTransports(svcInterface *source.Interface, generatedFs afero.Fs, moduleName, packageName string) error {
+	err := fs.CreateFolder("transport", generatedFs)
+	if err != nil {
+		return err
+	}
+
+	generatedFs = afero.NewBasePathFs(generatedFs, "transport")
+
+	transportsCode, err := template.CompileGoFromPath(
+		"/assets/templates/service/gen/transport/transport.go.gotmpl",
+		map[string]interface{}{
+			"ProjectModule":  moduleName,
+			"ServicePackage": packageName,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	err = fs.CreateFile("transports.go", transportsCode, generatedFs)
+	if err != nil {
+		return err
+	}
+
+	err = fs.CreateFolder("http", generatedFs)
+	if err != nil {
+		return err
+	}
+
+	generatedFs = afero.NewBasePathFs(generatedFs, "http")
+
+	allHttpCode, err := template.CompileGoFromPath(
+		"/assets/templates/service/gen/transport/http/http.go.gotmpl",
+		map[string]interface{}{
+			"ServiceInterface": svcInterface,
+			"ProjectModule":    moduleName,
+			"ServicePackage":   packageName,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	err = fs.CreateFile("http.go", allHttpCode, generatedFs)
+	if err != nil {
+		return err
+	}
+
+	for _, mth := range svcInterface.Methods() {
+		fixMethodTypes(&mth)
+		methodHttpCode, err := template.CompileGoFromPath(
+			"/assets/templates/service/gen/transport/http/method.go.gotmpl",
+			map[string]interface{}{
+				"ServiceInterface": svcInterface,
+				"ServiceMethod":    &mth,
+				"MethodRoutes":     findMethodRoutes(mth),
+				"ProjectModule":    moduleName,
+				"ServicePackage":   packageName,
+			},
+		)
+		if err != nil {
+			return err
+		}
+		err = fs.CreateFile(
+			fmt.Sprintf("%s.go", strutil.ToSnakeCase(mth.Name())),
+			methodHttpCode,
+			generatedFs,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
