@@ -50,7 +50,7 @@ func NewHTTPTransport(httpAnnotations []annotation.Annotation) MethodTransport {
 			Name:       httpAnnotation.Get("name").String(),
 			Methods:    methodsPrepared,
 			MethodsAll: strings.Join(methodsPrepared, ", "),
-			Route:      ,
+			Route:    route  ,
 		})
 	}
 	return transport
