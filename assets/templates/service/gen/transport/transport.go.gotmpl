@@ -1,6 +1,11 @@
 package transport
 
-import 	"{{ .ProjectModule }}/{{ .ServicePackage }}/gen/transport/http"
+{{ $projectModule := "" }}
+{{ with .Config }}
+	{{ $projectModule = .Module }}
+{{ end }}
+
+import 	"{{ $projectModule }}/{{ .Package }}/gen/transport/http"
 
 type Transports interface {
 	HTTP() http.Transport

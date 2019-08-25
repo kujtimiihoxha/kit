@@ -30,7 +30,7 @@ func CreateFolder(path string, fs afero.Fs) error {
 	return fs.Mkdir(path, 0755)
 }
 
-func CreateFile(path, data string, fs afero.Fs) error {
+func WriteFile(path, data string, fs afero.Fs) error {
 	return afero.WriteFile(fs, path, []byte(data), 0644)
 }
 

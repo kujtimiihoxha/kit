@@ -1,5 +1,8 @@
 package cmd
-
+{{ $projectModule := "" }}
+{{ with .Config }}
+	{{ $projectModule = .Module }}
+{{ end }}
 import (
 	"fmt"
 	"github.com/go-kit/kit/log"
@@ -12,8 +15,8 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"syscall"
-	"{{ .ProjectModule }}/{{ .ServicePackage }}/gen/transport"
-	generatedTransport "{{ .ProjectModule }}/{{ .ServicePackage }}/gen/transport/http"
+	"{{ $projectModule }}/{{ .Package }}/gen/transport"
+	generatedTransport "{{ $projectModule }}/{{ .Package }}/gen/transport/http"
 )
 
 func Run(transports transport.Transports, logger log.Logger) {

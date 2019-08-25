@@ -37,13 +37,13 @@ func NewProject(name string) error {
 	if err != nil {
 		return err
 	}
-	if err := fs.CreateFile(".gitignore", gitignore, projectFs); err != nil {
+	if err := fs.WriteFile(".gitignore", gitignore, projectFs); err != nil {
 		return err
 	}
-	if err := fs.CreateFile("go.mod", gomod, projectFs); err != nil {
+	if err := fs.WriteFile("go.mod", gomod, projectFs); err != nil {
 		return err
 	}
-	if err := fs.CreateFile("kit.json", kitJson, projectFs); err != nil {
+	if err := fs.WriteFile("kit.json", kitJson, projectFs); err != nil {
 		return err
 	}
 

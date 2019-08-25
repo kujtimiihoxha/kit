@@ -7,8 +7,6 @@ import (
 	"text/template"
 )
 
-var FS *FileSystem
-
 func CompileFromPath(tplPath string, data interface{}) (string, error) {
 	file, err := FS.Open(tplPath)
 	if err != nil {

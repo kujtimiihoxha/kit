@@ -1,16 +1,24 @@
+{{ $projectModule := "" }}
+{{ $service := .Service}}
+{{ $http := .HTTP}}
+{{ with $service}}
+	{{with .Config}}
+		{{ $projectModule = .Module }}
+	{{end}}
+{{ end }}
 package http
 import (
-	"{{ .ProjectModule }}/{{ .ServicePackage }}/gen/endpoint"
+	"{{ $projectModule }}/{{with $service}}{{ .Package }}{{end}}/gen/endpoint"
+	"{{ $projectModule }}/{{with $service}}{{ .Package }}{{end}}/gen/endpoint"
 	"context"
 	"encoding/json"
 
-	service "{{ .ProjectModule }}/{{ .ServicePackage }}"
+	service "{{ $projectModule }}/{{with $service}}{{ .Package }}{{end}}"
 	goKitEndpoint "github.com/go-kit/kit/endpoint"
 	goKitHttp "github.com/go-kit/kit/transport/http"
 	goHttp "net/http"
 )
-{{ $methodRoutes := .MethodRoutes}}
-{{ with .ServiceMethod }}
+{{ with .Method }} {{with .Code}}
 {{ $resLength :=  len .Results }}{{ $reqLength :=  len .Params }}
 type {{ .Name }}DecodeRequestFunc func(context.Context{{if eq $reqLength 2}} , *goHttp.Request{{ end }}) ({{if eq $reqLength 2}} {{ with index .Params 1 }} {{.Type}} {{ end }}, {{ end }}error)
 
@@ -46,12 +54,12 @@ func make{{.Name}}HttpTransport(endpoint goKitEndpoint.Endpoint) {{.Name}}HTTP {
 
 func {{ toLowerFirst .Name }}RouteMethods() []MethodRoute {
 	return []MethodRoute{
-		{{range $methodRoutes}}{
+		{{with $http}}{{range .MethodRoutes}}{
 			Name:   "{{.Name}}",
 			Route:  "{{.Route}}",
-			Methods: []Method{{"{"}}{{.Methods}}{{"}"}},
+			Methods: []Method{{"{"}}{{.MethodsAll}}{{"}"}},
 		},
-	{{end}}}
+	{{end}}}{{end}}
 }
 func {{ toLowerFirst .Name }}Decoder(_ context.Context{{if eq $reqLength 2}}, r *goHttp.Request{{ end }}) ({{if eq $reqLength 2}}request {{ with index .Params 1}} {{ .Type }} {{ end }}, {{end}}err error) {
 {{if eq $reqLength 2}}err = json.NewDecoder(r.Body).Decode(&request)
@@ -113,4 +121,4 @@ func (h *{{ toLowerFirst .Name }}) Handler() goHttp.Handler {
 		h.options...,
 	)
 }
-{{ end }}
+{{ end }}{{end}}

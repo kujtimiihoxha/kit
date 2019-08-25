@@ -1,11 +1,17 @@
+{{ $projectModule := "" }}
+{{ $service := .Service}}
+{{ with $service}}
+	{{with .Config}}
+	{{ $projectModule = .Module }}
+	{{end}}
+{{ end }}
 package endpoint
-{{$service := .ServiceInterface}}
 import (
 	"context"
 	"github.com/go-kit/kit/endpoint"
-	service "{{ .ProjectModule }}/{{ .ServicePackage }}"
+	service "{{ $projectModule }}/{{with $service}}{{ .Package }}{{end}}"
 )
-{{ with .ServiceMethod }}
+{{ with .Method }} {{ with .Code}}
 {{ $resLength :=  len .Results }}{{ $reqLength :=  len .Params }}
 type {{ .Name }}Response struct {
 {{  if eq $resLength  2 }} Response {{ with index .Results 0}} {{ .Type }} {{ end }}{{ end }}
@@ -24,14 +30,14 @@ type {{ toLowerFirst .Name }} struct {
 	globalMiddleware []endpoint.Middleware
 }
 
-func make{{ .Name }}Endpoint(svc service.{{ with $service }}{{ .Name }}{{ end }}, global ...endpoint.Middleware) {{ .Name }}Endpoint {
+func make{{ .Name }}Endpoint(svc service.{{ with $service}}{{with .Interface}}{{ .Name }}{{end}}{{ end }}, global ...endpoint.Middleware) {{ .Name }}Endpoint {
 	return &{{ toLowerFirst .Name }}{
 		endpoint:         {{ toLowerFirst .Name }}Endpoint(svc),
 		globalMiddleware: global,
 	}
 }
 
-func {{ toLowerFirst .Name }}Endpoint(b service.{{ with $service }}{{ .Name }}{{ end }}) {{ .Name }}EndpointFunc {
+func {{ toLowerFirst .Name }}Endpoint(b service.{{ with $service}}{{with .Interface}}{{ .Name }}{{end}}{{ end }}) {{ .Name }}EndpointFunc {
 	return func({{ paramsString .Params}}) ({{ .Name }}Response, error) {
 		{{  if eq  $resLength 2 }} res, {{end}} err := b.{{ .Name }}(ctx{{ if eq $reqLength  2 }}, {{ with index .Params 1}}{{.Name}}{{ end }}{{ end }})
 		return {{ .Name }}Response{{"{"}}{{  if eq  $resLength 2 }}Response:res, {{end}}Err: err}, nil
@@ -60,4 +66,5 @@ func (e *{{ toLowerFirst .Name }}) Set(endpoint {{ .Name }}EndpointFunc) {
 func (e *{{ toLowerFirst .Name }}) Middleware(mdw ...{{ .Name }}EndpointMiddleware) {
 	e.middleware = append(e.middleware, mdw...)
 }
+{{end}}
 {{ end }}

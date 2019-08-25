@@ -1,7 +1,11 @@
 package http
+{{ $projectModule := "" }}
+{{ with .Config }}
+	{{ $projectModule = .Module }}
+{{ end }}
 
 import (
-	"{{ .ProjectModule }}/{{ .ServicePackage }}/gen/endpoint"
+	"{{ $projectModule }}/{{ .Package }}/gen/endpoint"
 	"github.com/gorilla/mux"
 	goHttp "net/http"
 
@@ -31,16 +35,14 @@ type HTTP interface {
 	Options([]goKitHttp.ServerOption)
 	Handler() goHttp.Handler
 }
-{{ with .ServiceInterface }}
-
 type Transport interface {
-	{{ range .Methods }}{{ .Name }}() {{ .Name }}HTTP
+	{{ range .Methods }} {{with .Code}}{{ .Name }}() {{ .Name }}{{end}}HTTP
 {{ end }}
 	Iterate(func(httpTransport HTTP))
 }
 
 type httpTransport struct {
-	{{ range .Methods}}{{ toLowerFirst .Name}} {{ .Name }}HTTP
+	{{ range .Methods}}{{with .Code}}{{ toLowerFirst .Name}} {{ .Name }}{{end}}HTTP
 {{ end }}}
 
 var defaultErrorEncoder = goKitHttp.DefaultErrorEncoder
@@ -50,23 +52,23 @@ func SetDefaultErrorEncoder(encoder goKitHttp.ErrorEncoder) {
 }
 func MakeHttpTransport(endpoints endpoint.Endpoints, global ...goKitHttp.ServerOption) Transport {
 	httpTransport := makeRootHttpTransport(endpoints)
-	{{ range .Methods }}httpTransport.{{ .Name }}().Options(global)
-	{{ end }}return httpTransport
+	{{ range .Methods }}{{with .Code}}httpTransport.{{ .Name }}().Options(global)
+	{{ end }}{{ end }}return httpTransport
 }
 func makeRootHttpTransport(endpoints endpoint.Endpoints) Transport {
 	return &httpTransport{
-		{{ range .Methods}}{{ toLowerFirst .Name }}:    make{{ .Name }}HttpTransport(endpoints.{{ .Name }}().Endpoint()),
-	{{ end }}}
+		{{ range .Methods}}{{with .Code}}{{ toLowerFirst .Name }}:    make{{ .Name }}HttpTransport(endpoints.{{ .Name }}().Endpoint()),
+	{{ end }}{{ end }}}
 }
-{{ range .Methods}}
+{{ range .Methods}}{{with .Code}}
 func (b *httpTransport) {{ .Name }}() {{ .Name }}HTTP {
 	return b.{{ toLowerFirst .Name }}
 }
-{{ end }}
+{{ end }}{{ end }}
 func (b *httpTransport) Iterate(iterFunc func(HTTP)) {
 	all := []HTTP{
-		{{ range .Methods }}b.{{ toLowerFirst .Name }},
-	{{ end }}}
+		{{ range .Methods }}{{with .Code}}b.{{ toLowerFirst .Name }},
+	{{ end }}{{ end }}}
 
 	for _, m := range all {
 		iterFunc(m)
@@ -90,4 +92,3 @@ func AddHttpServerOption(httpTransport Transport, opts ...goKitHttp.ServerOption
 		method.Options(opts)
 	})
 }
-{{ end }}

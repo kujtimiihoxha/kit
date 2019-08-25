@@ -1,25 +1,30 @@
 package endpoint
 
+{{ $projectModule := "" }}
+{{ with .Config }}
+	{{ $projectModule = .Module }}
+{{ end }}
+
 import (
-	 service "{{ .ProjectModule }}/{{ .ServicePackage }}"
+	 service "{{ $projectModule }}/{{ .Package }}"
 	"github.com/go-kit/kit/endpoint"
 )
-{{ with .ServiceInterface }}
+{{ with .Interface }}
 type Endpoints interface {
-{{ range .Methods }}	{{ .Name }}() {{ .Name }}Endpoint
+{{ range .Methods }} {{with .Code}}	{{ .Name }}() {{ .Name }}Endpoint {{end}}
 {{ end }}}
 
 type endpoints struct {
-{{ range .Methods }}	{{ toLowerFirst .Name}}    {{ .Name }}Endpoint
+{{ range .Methods }} {{with .Code}}	{{ toLowerFirst .Name}}  {{ .Name }}Endpoint {{end}}
 {{ end }}}
 
 func MakeEndpoints(svc service.{{.Name}}, globalMiddleware ...endpoint.Middleware) Endpoints {
 	return &endpoints{
-		{{ range .Methods }}	{{ toLowerFirst .Name}}:	make{{ .Name }}Endpoint(svc, globalMiddleware...),
+		{{ range .Methods }} {{with .Code}}		{{ toLowerFirst .Name}}:	make{{ .Name }}Endpoint(svc, globalMiddleware...),{{end}}
 	{{ end }}}
 }
 
-{{range .Methods}}func (svcEndpoints endpoints) {{ .Name }}() {{ .Name }}Endpoint {
+{{range .Methods}}{{with .Code}}	func (svcEndpoints endpoints) {{ .Name }}() {{ .Name }}Endpoint {
 	return svcEndpoints.{{ toLowerFirst .Name}}
 }
-{{ end }}{{ end }}
+{{ end }}{{ end }}{{ end }}

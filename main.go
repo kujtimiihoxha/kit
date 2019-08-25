@@ -1,16 +1,19 @@
 package main
 
-import (
-	"fmt"
-	"github.com/spf13/afero"
-	"github.com/spf13/viper"
-	"kit/fs"
-	"kit/generator"
-)
+import "kit/watch"
 
 func main() {
-	//fmt.Println(generator.NewProject("test"))
-	viper.Set("testFs", afero.NewBasePathFs(fs.AppFs(), "test"))
-	//fmt.Println(generator.NewService("abc"))
-	fmt.Println(generator.GenerateService("abc"))
+	//viper.Set("testFs", afero.NewBasePathFs(fs.AppFs(), "test"))
+	//viper.Set("testPath", "test")
+	//start := time.Now()
+	//s, _ := service.Read("abc")
+	//s.Generate()
+	//end := time.Now()
+	//fmt.Println(end.Sub(start).Seconds())
+	//matches, err := zglob.Glob("**/*")
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	//fmt.Println(matches)
+	watch.Run()
 }
