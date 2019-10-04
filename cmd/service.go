@@ -56,6 +56,6 @@ var serviceCmd = &cobra.Command{
 
 func init() {
 	newCmd.AddCommand(serviceCmd)
-	serviceCmd.Flags().StringP("mod_module", "m", "", "The mod module name that you plan to set in the project, use it obove go1.13.1")
+	serviceCmd.Flags().StringP("mod_module", "m", "", "The mod module name that you plan to set in the project")
 	viper.BindPFlag("n_s_mod_module", serviceCmd.Flags().Lookup("mod_module"))
 }
