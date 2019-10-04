@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/kujtimiihoxha/kit/cmd"
-	"github.com/spf13/viper"
 	"path"
 	"runtime"
+
+	"github.com/kujtimiihoxha/kit/cmd"
+	"github.com/spf13/viper"
 )
 
 func main() {

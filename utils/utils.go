@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/alioygur/godash"
+	"github.com/kujtimiihoxha/kit/fs"
 	"github.com/spf13/viper"
 	"golang.org/x/tools/imports"
 )
@@ -129,6 +130,11 @@ func defaultGOPATH() string {
 }
 
 func getImportPath(name string, key string) (string, error) {
+	modName, err := getModNameFromModFile(name)
+	if err != nil {
+		return "", err
+	}
+
 	gosrc := GetGOPATH() + "/src/"
 	gosrc = strings.Replace(gosrc, "\\", "/", -1)
 	pwd, err := os.Getwd()
@@ -145,15 +151,13 @@ func getImportPath(name string, key string) (string, error) {
 	svcPath := fmt.Sprintf(viper.GetString(key), ToLowerSnakeCase(name))
 
 	path := strings.Replace(svcPath, "\\", "/", -1)
-	if viper.GetString("g_s_mod_module") != "" {
-		projectPath = viper.GetString("g_s_mod_module")
-		projectPath = strings.Replace(projectPath, "\\", "/", -1)
-
-		projectPathArr := strings.Split(projectPath, "/")
-		pathArr := strings.Split(path, "/")
-		if len(projectPathArr) != 0 && len(pathArr) != 0 && projectPathArr[len(projectPathArr) - 1] == pathArr[0] {
-			projectPathArr = projectPathArr[0:len(projectPathArr) - 1]
-			projectPath = strings.Join(projectPathArr, "/")
+	if modName != "" {
+		modName = strings.Replace(modName, "\\", "/", -1)
+		modNameArr := strings.Split(modName, "/")
+		if len(modNameArr) <= 1 {
+			projectPath = ""
+		} else {
+			projectPath = strings.Join(modNameArr[0:len(modNameArr)-1], "/")
 		}
 	}
 	var importPath string
@@ -165,3 +169,25 @@ func getImportPath(name string, key string) (string, error) {
 	return importPath, nil
 }
 
+func getModNameFromModFile(name string) (string, error) {
+	filePath := name + "/go.mod"
+	exists, _ := fs.Get().Exists(filePath)
+	if exists == false {
+		return "", nil
+	}
+
+	content, err := fs.Get().ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	modDataArr := strings.Split(content, "\n")
+	if len(modDataArr) != 0 {
+		modNameArr := strings.Split(modDataArr[0], " ")
+		if len(modNameArr) < 2 { // go.mod file: module XXXX/XXXX/{projectName}
+			return "", nil
+		}
+		return modNameArr[1], nil
+	}
+	return "", nil
+}

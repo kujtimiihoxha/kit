@@ -18,3 +18,4 @@ vendor/
 
 .idea
 *.iml
+.vscode/

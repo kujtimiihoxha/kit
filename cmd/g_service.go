@@ -1,15 +1,16 @@
 package cmd
 
 import (
-	"github.com/kujtimiihoxha/kit/generator"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/kujtimiihoxha/kit/generator"
 	"github.com/kujtimiihoxha/kit/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var methods []string
@@ -18,7 +19,7 @@ var initserviceCmd = &cobra.Command{
 	Short:   "Initiate a service",
 	Aliases: []string{"s"},
 	Run: func(cmd *cobra.Command, args []string) {
-		gosrc := strings.TrimSuffix(utils.GetGOPATH(), afero.FilePathSeparator ) + afero.FilePathSeparator + "src" + afero.FilePathSeparator
+		gosrc := strings.TrimSuffix(utils.GetGOPATH(), afero.FilePathSeparator) + afero.FilePathSeparator + "src" + afero.FilePathSeparator
 		pwd, err := os.Getwd()
 		if err != nil {
 			logrus.Error(err)
@@ -32,18 +33,6 @@ var initserviceCmd = &cobra.Command{
 		pwd, err = filepath.EvalSymlinks(pwd)
 		if err != nil {
 			logrus.Error(err)
-			return
-		}
-
-		var modPath string
-		modPath = viper.GetString("g_s_mod_module")
-		if modPath != "" && strings.HasPrefix(pwd, gosrc) {
-			logrus.Error("The project in the $GOPATH/src folder for the generator to work do not need to set --mod_module.")
-			return
-		}
-
-		if modPath == "" && !strings.HasPrefix(pwd, gosrc) {
-			logrus.Error("The project must be in the $GOPATH/src folder for the generator to work.")
 			return
 		}
 
