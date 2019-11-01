@@ -215,3 +215,30 @@ func defaultGOPATH() string {
 	}
 	return ""
 }
+
+// GetServiceInterfaceName returns the service interface name
+func GetServiceInterfaceName(name string) string {
+	format := viper.GetString("gk_service_interface_name")
+	if format == "" {
+		format = "%sService"
+	}
+	return fmt.Sprintf(format, ToCamelCase(name))
+}
+
+// GetProtoServiceName returns the protobuf service name
+func GetProtoServiceName(name string) string {
+	format := viper.GetString("gk_proto_service_name")
+	if format == "" {
+		format = "%s"
+	}
+	return ToCamelCase(fmt.Sprintf(format, name))
+}
+
+// GetProtoPackageName returns the protobuf package name
+func GetProtoPackageName() string {
+	format := viper.GetString("gk_proto_package_name")
+	if format == "" {
+		return "pb"
+	}
+	return fmt.Sprintf(format, "pb")
+}

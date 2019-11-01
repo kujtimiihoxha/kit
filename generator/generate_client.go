@@ -33,7 +33,7 @@ type GenerateClient struct {
 func NewGenerateClient(name string, transport string) Gen {
 	i := &GenerateClient{
 		name:            name,
-		interfaceName:   utils.ToCamelCase(name + "Service"),
+		interfaceName:   utils.GetServiceInterfaceName(name),
 		destPath:        fmt.Sprintf(viper.GetString("gk_client_cmd_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceDestPath: fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(name)),
 		transport:       transport,
@@ -143,7 +143,7 @@ type generateHTTPClient struct {
 func newGenerateHTTPClient(name string, serviceInterface parser.Interface, serviceFile *parser.File) Gen {
 	i := &generateHTTPClient{
 		name:             name,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_client_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 		serviceFile:      serviceFile,
@@ -347,7 +347,7 @@ type generateGRPCClient struct {
 func newGenerateGRPCClient(name string, serviceInterface parser.Interface, serviceFile *parser.File) Gen {
 	i := &generateGRPCClient{
 		name:             name,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_client_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 		serviceFile:      serviceFile,
@@ -395,7 +395,7 @@ func (g *generateGRPCClient) Generate() (err error) {
 					"NewClient",
 				).Call(
 					jen.Id("conn"),
-					jen.Lit("pb."+utils.ToCamelCase(g.name)),
+					jen.Lit(utils.GetProtoPackageName()+"."+utils.GetProtoServiceName(g.name)),
 					jen.Lit(m.Name),
 					jen.Id(fmt.Sprintf("encode%sRequest", m.Name)),
 					jen.Id(fmt.Sprintf("decode%sResponse", m.Name)),

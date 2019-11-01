@@ -44,7 +44,7 @@ func NewGenerateTransport(name string, gorillaMux bool, transport string, method
 	i := &GenerateTransport{
 		name:          name,
 		gorillaMux:    gorillaMux,
-		interfaceName: utils.ToCamelCase(name + "Service"),
+		interfaceName: utils.GetServiceInterfaceName(name),
 		destPath:      fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(name)),
 		methods:       methods,
 	}
@@ -196,7 +196,7 @@ func newGenerateHTTPTransport(name string, gorillaMux bool, serviceInterface par
 	t := &generateHTTPTransport{
 		name:             name,
 		methods:          methods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 		gorillaMux:       gorillaMux,
@@ -536,7 +536,7 @@ func newGenerateHTTPTransportBase(name string, gorillaMux bool, serviceInterface
 		methods:          methods,
 		gorillaMux:       gorillaMux,
 		allMethods:       allMethods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
@@ -645,9 +645,9 @@ type generateGRPCTransportProto struct {
 
 func newGenerateGRPCTransportProto(name string, serviceInterface parser.Interface, methods []string) Gen {
 	t := &generateGRPCTransportProto{
-		name:             name,
+		name:             utils.GetProtoServiceName(name),
 		methods:          methods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_pb_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
@@ -695,7 +695,7 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 				Value: "proto3",
 			},
 			&proto.Package{
-				Name: "pb",
+				Name: utils.GetProtoPackageName(),
 			},
 			svc,
 		)
@@ -870,7 +870,7 @@ func newGenerateGRPCTransportBase(name string, serviceInterface parser.Interface
 		name:             name,
 		methods:          methods,
 		allMethods:       allMethods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
@@ -948,7 +948,7 @@ func (g *generateGRPCTransportBase) Generate() (err error) {
 			jen.Id("options").Map(jen.String()).Index().Qual("github.com/go-kit/kit/transport/grpc", "ServerOption"),
 		},
 		[]jen.Code{
-			jen.Qual(pbImport, utils.ToCamelCase(g.name)+"Server"),
+			jen.Qual(pbImport, utils.GetProtoServiceName(g.name)+"Server"),
 		},
 		"",
 		jen.Return(jen.Id("&grpcServer").Values(vl)),
@@ -973,7 +973,7 @@ func newGenerateGRPCTransport(name string, serviceInterface parser.Interface, me
 	t := &generateGRPCTransport{
 		name:             name,
 		methods:          methods,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_grpc_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}

@@ -37,7 +37,7 @@ func NewGenerateMiddleware(name, serviceName string, ep bool) Gen {
 		name:                 name,
 		serviceName:          serviceName,
 		isEndpointMiddleware: ep,
-		interfaceName:        utils.ToCamelCase(serviceName + "Service"),
+		interfaceName:        utils.GetServiceInterfaceName(serviceName),
 		destPath:             fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(serviceName)),
 	}
 	i.filePath = path.Join(i.destPath, viper.GetString("gk_service_file_name"))

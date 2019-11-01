@@ -36,7 +36,7 @@ type GenerateService struct {
 func NewGenerateService(name, transport string, sMiddleware, gorillaMux, eMiddleware bool, methods []string) Gen {
 	i := &GenerateService{
 		name:          name,
-		interfaceName: utils.ToCamelCase(name + "Service"),
+		interfaceName: utils.GetServiceInterfaceName(name),
 		destPath:      fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(name)),
 		sMiddleware:   sMiddleware,
 		eMiddleware:   eMiddleware,
@@ -285,7 +285,7 @@ func newGenerateServiceMiddleware(name string, serviceFile *parser.File,
 	serviceInterface parser.Interface, generateDefaults bool) Gen {
 	gsm := &generateServiceMiddleware{
 		name:             name,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 		serviceFile:      serviceFile,
@@ -499,7 +499,7 @@ func newGenerateServiceEndpoints(name string, imports []parser.NamedTypeValue,
 	serviceInterface parser.Interface, generateDefaults bool) Gen {
 	gsm := &generateServiceEndpoints{
 		name:             name,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_endpoint_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 		serviceImports:   imports,
@@ -895,7 +895,7 @@ type generateServiceEndpointsBase struct {
 func newGenerateServiceEndpointsBase(name string, serviceInterface parser.Interface) Gen {
 	gsm := &generateServiceEndpointsBase{
 		name:             name,
-		interfaceName:    utils.ToCamelCase(name + "Service"),
+		interfaceName:    utils.GetServiceInterfaceName(name),
 		destPath:         fmt.Sprintf(viper.GetString("gk_endpoint_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
 	}
@@ -980,7 +980,7 @@ type generateEndpointMiddleware struct {
 func newGenerateEndpointMiddleware(name string) Gen {
 	gsm := &generateEndpointMiddleware{
 		name:          name,
-		interfaceName: utils.ToCamelCase(name + "Service"),
+		interfaceName: utils.GetServiceInterfaceName(name),
 		destPath:      fmt.Sprintf(viper.GetString("gk_endpoint_path_format"), utils.ToLowerSnakeCase(name)),
 	}
 	gsm.filePath = path.Join(gsm.destPath, viper.GetString("gk_endpoint_middleware_file_name"))
@@ -1490,7 +1490,7 @@ func newGenerateCmd(name string, serviceInterface parser.Interface,
 	t := &generateCmd{
 		name:                               name,
 		methods:                            methods,
-		interfaceName:                      utils.ToCamelCase(name + "Service"),
+		interfaceName:                      utils.GetServiceInterfaceName(name),
 		destPath:                           fmt.Sprintf(viper.GetString("gk_cmd_service_path_format"), utils.ToLowerSnakeCase(name)),
 		httpDestPath:                       fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		grpcDestPath:                       fmt.Sprintf(viper.GetString("gk_grpc_path_format"), utils.ToLowerSnakeCase(name)),
@@ -1987,7 +1987,7 @@ func (g *generateCmd) generateInitGRPC() (err error) {
 				jen.Id("*grpcAddr"),
 			),
 			jen.Id("baseServer").Op(":=").Qual("google.golang.org/grpc", "NewServer").Call(),
-			jen.Qual(pbImport, fmt.Sprintf("Register%sServer", utils.ToCamelCase(g.name))).Call(
+			jen.Qual(pbImport, fmt.Sprintf("Register%sServer", utils.GetProtoServiceName(g.name))).Call(
 				jen.Id("baseServer"),
 				jen.Id("grpcServer"),
 			),
