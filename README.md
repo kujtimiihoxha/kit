@@ -17,6 +17,7 @@ GoKit Cli needs to be installed using `go get` and `go install` so `Go` is a req
  - [Generate the service](#generate-the-service)
  - [Generate the client library](#generate-the-client-library)
  - [Generate new middlewares](#generate-new-middleware)
+ - [Mod feature support](#mod-feature-support)
  - [Enable docker integration](#enable-docker-integration)
  
 # Installation
@@ -109,6 +110,15 @@ kit g m hi -s hello
 kit g m hi -s hello -e # if you want to add endpoint middleware
 ```
 The only thing left to do is add your middleware logic and wire the middleware with your service/endpoint.
+# Mod feature support
+If you want to create project outside the gopath, you could use --mod_module flag to set your module name when you are creating a new service. And if you want to use it under your gopath, please make sure your go version >= 1.3, or
+GO111MODULE is set on.
+For example:
+```bash
+kit n s hello --mod_mudole hello
+kit g s hello --dmw
+```
+The command could create the go.mod file with the module name. And when you are generating the service and the client library, the module name in the go.mod file could be autodetected.
 # Enable docker integration
 
 ```bash

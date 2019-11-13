@@ -1,8 +1,14 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/kujtimiihoxha/kit/generator"
+	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -13,6 +19,23 @@ var initserviceCmd = &cobra.Command{
 	Short:   "Initiate a service",
 	Aliases: []string{"s"},
 	Run: func(cmd *cobra.Command, args []string) {
+		gosrc := strings.TrimSuffix(utils.GetGOPATH(), afero.FilePathSeparator) + afero.FilePathSeparator + "src" + afero.FilePathSeparator
+		pwd, err := os.Getwd()
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+		gosrc, err = filepath.EvalSymlinks(gosrc)
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+		pwd, err = filepath.EvalSymlinks(pwd)
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+
 		if len(args) == 0 {
 			logrus.Error("You must provide a name for the service")
 			return
