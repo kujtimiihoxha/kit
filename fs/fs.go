@@ -2,7 +2,6 @@ package fs
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Songmu/prompter"
 	"github.com/sirupsen/logrus"
@@ -56,17 +55,17 @@ func (f *KitFs) WriteFile(path string, data string, force bool) error {
 			return nil
 		}
 	}
-	return afero.WriteFile(f.Fs, path, []byte(data), os.ModePerm)
+	return afero.WriteFile(f.Fs, path, []byte(data), 0644)
 }
 
 // Mkdir creates a directory.
 func (f *KitFs) Mkdir(dir string) error {
-	return f.Fs.Mkdir(dir, os.ModePerm)
+	return f.Fs.Mkdir(dir, 0744)
 }
 
 // MkdirAll creates a directory and its parents if they don't exist.
 func (f *KitFs) MkdirAll(path string) error {
-	return f.Fs.MkdirAll(path, os.ModePerm)
+	return f.Fs.MkdirAll(path, 0744)
 }
 
 // Exists returns true,nil if the dir/file exists or false,nil if
