@@ -60,12 +60,12 @@ func (f *KitFs) WriteFile(path string, data string, force bool) error {
 
 // Mkdir creates a directory.
 func (f *KitFs) Mkdir(dir string) error {
-	return f.Fs.Mkdir(dir, 0744)
+	return f.Fs.Mkdir(dir, 0755)
 }
 
 // MkdirAll creates a directory and its parents if they don't exist.
 func (f *KitFs) MkdirAll(path string) error {
-	return f.Fs.MkdirAll(path, 0744)
+	return f.Fs.MkdirAll(path, 0755)
 }
 
 // Exists returns true,nil if the dir/file exists or false,nil if
