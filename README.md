@@ -17,7 +17,6 @@ GoKit Cli needs to be installed using `go get` and `go install` so `Go` is a req
  - [Generate the service](#generate-the-service)
  - [Generate the client library](#generate-the-client-library)
  - [Generate new middlewares](#generate-new-middleware)
- - [Mod feature support](#mod-feature-support)
  - [Enable docker integration](#enable-docker-integration)
  
 # Installation
