@@ -170,10 +170,18 @@ func getImportPath(name string, key string) (string, error) {
 }
 
 func getModNameFromModFile(name string) (string, error) {
-	filePath := name + "/go.mod"
+	modFile := "go.mod"
+	filePath := name + "/" + modFile
 	exists, _ := fs.Get().Exists(filePath)
+	var modFileInParentLevel bool
 	if exists == false {
-		return "", nil
+		//if the service level has no go.mod file, it will check the parent level
+		exists, err := fs.Get().Exists(modFile)
+		if exists == false {
+			return "", err
+		}
+		filePath = modFile
+		modFileInParentLevel = true
 	}
 
 	content, err := fs.Get().ReadFile(filePath)
@@ -186,6 +194,9 @@ func getModNameFromModFile(name string) (string, error) {
 		modNameArr := strings.Split(modDataArr[0], " ")
 		if len(modNameArr) < 2 { // go.mod file: module XXXX/XXXX/{projectName}
 			return "", nil
+		}
+		if modFileInParentLevel == true {
+			return modNameArr[1] + "/" + name, nil
 		}
 		return modNameArr[1], nil
 	}
