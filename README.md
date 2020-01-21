@@ -37,11 +37,19 @@ kit help
 
 Also read this [medium story](https://medium.com/@kujtimii.h/creating-a-todo-app-using-gokit-cli-20f066a58e1)
 # Create a new service
+The kit tool use modules to manage dependencies, please make sure your go version >= 1.3, or
+GO111MODULE is set on. If you want to specify the module name, you should use the --module flag, otherwise, the module name in the go.mod file will be set as your project name.
 ```bash
 kit new service hello
 kit n s hello # using aliases
 ```
-This will generate the initial folder structure and the service interface
+or
+```bash
+kit new service hello --module github.com/{group name}/hello
+kit n s hello -m github.com/{group name}/hello # using aliases
+```
+
+This will generate the initial folder structure, the go.mod file and the service interface
 
 `service-name/pkg/service/service.go`
 ```go
@@ -53,6 +61,7 @@ type HelloService interface {
 	// e.x: Foo(ctx context.Context,s string)(rs string, err error)
 }
 ```
+When you are generating the service and the client library, the module name in the go.mod file could be autodetected.
 
 # Generate the service
 ```bash

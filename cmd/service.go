@@ -4,6 +4,7 @@ import (
 	"github.com/kujtimiihoxha/kit/generator"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var serviceCmd = &cobra.Command{
@@ -24,4 +25,6 @@ var serviceCmd = &cobra.Command{
 
 func init() {
 	newCmd.AddCommand(serviceCmd)
+	serviceCmd.Flags().StringP("module", "m", "", "The module name that you plan to set in the project")
+	viper.BindPFlag("n_s_module", serviceCmd.Flags().Lookup("module"))
 }

@@ -2,6 +2,7 @@ package generator
 
 import (
 	"fmt"
+	"os/exec"
 	"path"
 	"strings"
 
@@ -40,6 +41,12 @@ func NewNewService(name string) Gen {
 // Generate will run the generator.
 func (g *NewService) Generate() error {
 	g.CreateFolderStructure(g.destPath)
+	err := g.genModule()
+	if err != nil {
+		println(err.Error())
+		return err
+	}
+
 	comments := []string{
 		"Add your methods here",
 		"e.x: Foo(ctx context.Context,s string)(rs string, err error)",
@@ -52,4 +59,20 @@ func (g *NewService) Generate() error {
 		[]jen.Code{partial.Raw()},
 	)
 	return g.fs.WriteFile(g.filePath, g.srcFile.GoString(), false)
+}
+
+func (g *NewService) genModule() error {
+	exist, _ := g.fs.Exists(g.name + "/go.mod")
+	if exist {
+		return nil
+	}
+
+	moduleName := g.name
+	if viper.GetString("n_s_module") != "" {
+		moduleName = viper.GetString("n_s_module")
+	}
+	cmdStr := "cd " + g.name + " && go mod init " + moduleName
+	cmd := exec.Command("sh", "-c", cmdStr)
+	_, err := cmd.Output()
+	return err
 }
