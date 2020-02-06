@@ -41,12 +41,10 @@ func NewNewService(name string) Gen {
 // Generate will run the generator.
 func (g *NewService) Generate() error {
 	g.CreateFolderStructure(g.destPath)
-	if viper.GetString("n_s_mod_module") != "" {
-		err := g.genModule()
-		if err != nil {
-			println(err.Error())
-			return err
-		}
+	err := g.genModule()
+	if err != nil {
+		println(err.Error())
+		return err
 	}
 
 	comments := []string{
@@ -68,7 +66,12 @@ func (g *NewService) genModule() error {
 	if exist {
 		return nil
 	}
-	cmdStr := "cd " + g.name + " && go mod init " + viper.GetString("n_s_mod_module")
+
+	moduleName := g.name
+	if viper.GetString("n_s_module") != "" {
+		moduleName = viper.GetString("n_s_module")
+	}
+	cmdStr := "cd " + g.name + " && go mod init " + moduleName
 	cmd := exec.Command("sh", "-c", cmdStr)
 	_, err := cmd.Output()
 	return err

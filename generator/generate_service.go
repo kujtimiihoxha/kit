@@ -1732,8 +1732,8 @@ func (g *generateCmd) generateRun() (*PartialGenerator, error) {
 		),
 		),
 		jen.Defer().Qual(
-			"github.com/lightstep/lightstep-tracer-go", "FlushLightStepTracer",
-		).Call(jen.Id("tracer")),
+			"github.com/lightstep/lightstep-tracer-go", "Flush",
+		).Call(jen.Qual("context","Background").Call(), jen.Id("tracer")),
 	).Else().If(jen.Id("*appdashAddr").Op("!=").Lit("")).Block(
 		jen.Id("logger").Dot("Log").Call(
 			jen.Lit("tracer"),
