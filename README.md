@@ -1,4 +1,6 @@
 # GoKit CLI  [![Build Status](https://travis-ci.org/kujtimiihoxha/kit.svg?branch=master)](https://travis-ci.org/kujtimiihoxha/kit)[![Go Report Card](https://goreportcard.com/badge/github.com/kujtimiihoxha/kit)](https://goreportcard.com/report/github.com/kujtimiihoxha/kit)[![Coverage Status](https://coveralls.io/repos/github/kujtimiihoxha/kit/badge.svg?branch=master)](https://coveralls.io/github/kujtimiihoxha/kit?branch=master)
+I fork the project from [kit](https://github.com/kujtimiihoxha/kit) and plan to maintain in the future. The kit tool is a great job, and deeply used in our team. Some features and bugs have been done, such as supporting go module and replace some old dependency. I am very glad to receive issues about it.  
+
 This project is a more advanced version of [gk](https://github.com/kujtimiihoxha/gk).
 The goal of the gokit cli is to be a tool that you can use while you develop your microservices with `gokit`.
 
@@ -31,9 +33,10 @@ kit help
 
 Also read this [medium story](https://medium.com/@kujtimii.h/creating-a-todo-app-using-gokit-cli-20f066a58e1)
 # Create a new service
-The kit tool use modules to manage dependencies, please make sure your go version >= 1.3, or
+The kit tool use modules to manage dependencies by default, please make sure your go version >= 1.3, or
 GO111MODULE is set on. If you want to specify the module name, you should use the --module flag, otherwise, the module name in the go.mod file will be set as your project name.
 ```bash
+kit new service --help
 kit new service hello
 kit n s hello # using aliases
 ```
