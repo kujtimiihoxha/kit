@@ -24,7 +24,7 @@ GoKit Cli needs to be installed using `go get` and `go install` so `Go` is a req
 # Installation
 Before you install please read [prerequisites](#prerequisites)
 ```bash
-go get github.com/kujtimiihoxha/kit
+go get github.com/GrantZheng/kit
 ```
 # Usage
 ```bash
