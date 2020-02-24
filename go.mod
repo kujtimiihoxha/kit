@@ -17,4 +17,4 @@ require (
 	gopkg.in/yaml.v2 v2.2.2
 )
 
-replace github.com/kujtimiihoxha/kit => github.com/GrantZheng/kit v1.0.0
+replace github.com/kujtimiihoxha/kit => github.com/GrantZheng/kit master
